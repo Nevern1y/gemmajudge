@@ -1,0 +1,10 @@
+# Core
+openai>=1.40.0          # OpenAI-compatible client (works for Fireworks + self-hosted vLLM)
+pydantic>=2.7.0         # data contracts / structured validation
+python-dotenv>=1.0.1    # load .env in local dev
+streamlit>=1.36.0       # UI
+plotly>=5.22.0          # charts
+
+# Dev
+pytest>=8.2.0
+ruff>=0.5.0

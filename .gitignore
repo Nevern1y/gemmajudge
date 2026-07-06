@@ -1,0 +1,49 @@
+# ---- Secrets & env (NEVER commit — this repo may go public) ----
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets/
+credentials*.json
+fireworks_key*
+*_api_key*
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# ---- Tooling / caches ----
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# ---- Streamlit ----
+.streamlit/secrets.toml
+
+# ---- Run artifacts (eval outputs, cached runs, captured proofs) ----
+runs/
+*.sqlite
+*.db
+cache/
+# Keep committed proof screenshots/logs under docs/amd_proof/ — those are intentional.
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
