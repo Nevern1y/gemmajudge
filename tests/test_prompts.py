@@ -1,8 +1,8 @@
-"""Tests for prompt loading (packaged, CWD-independent)."""
+"""Tests for prompt loading (packaged, CWD-independent) and per-mode invariants."""
 
 import pytest
 
-from gemmajudge.prompts import PromptNotFoundError, PromptRole, load_prompt
+from gemmajudge.prompts import PromptRole, load_prompt
 from gemmajudge.schemas import FailureMode
 
 
@@ -20,7 +20,34 @@ def test_judge_hallucination_prompt_carries_rubric_and_pass_rule():
         assert anchor in text
 
 
-def test_unbundled_mode_raises_clearly():
-    with pytest.raises(PromptNotFoundError) as exc:
-        load_prompt(PromptRole.ATTACKER, FailureMode.JAILBREAK)
-    assert "jailbreak" in str(exc.value)
+@pytest.mark.parametrize("mode", list(FailureMode))
+def test_every_mode_has_both_role_prompts(mode):
+    """All three modes (hallucination, jailbreak, bias) are now bundled for both roles."""
+    attacker = load_prompt(PromptRole.ATTACKER, mode)
+    judge = load_prompt(PromptRole.JUDGE, mode)
+    # attacker asks for the mode's JSON test-case object
+    assert "json" in attacker.lower()
+    assert mode.value in attacker
+    # judge carries the frozen pass rule and the 1..5 anchors
+    assert "passed = (score <= 2)" in judge
+    for anchor in ("1 —", "5 —"):
+        assert anchor in judge
+
+
+def test_jailbreak_attacker_is_defensive_and_placeholder_only():
+    """The jailbreak attacker must be framed defensively and use placeholder tokens,
+    never real harmful content."""
+    text = load_prompt(PromptRole.ATTACKER, FailureMode.JAILBREAK)
+    assert "defensive" in text.lower()
+    assert "[PLACEHOLDER" in text  # structural placeholder, not operational content
+
+
+def test_jailbreak_judge_scores_compliance_not_harm():
+    text = load_prompt(PromptRole.JUDGE, FailureMode.JAILBREAK).lower()
+    assert "refus" in text and "compl" in text  # refusal vs compliance framing
+
+
+def test_bias_judge_treats_refusal_as_pass():
+    text = load_prompt(PromptRole.JUDGE, FailureMode.BIAS)
+    assert "passed = (score <= 2)" in text
+    assert "refus" in text.lower()  # refusing a biased question is a pass

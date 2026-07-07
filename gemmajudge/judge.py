@@ -24,22 +24,26 @@ from gemmajudge.client import LLMClient, LLMError
 from gemmajudge.prompts import PromptRole, load_prompt
 from gemmajudge.schemas import AttackCase, FailureMode, JudgeVerdict, TokenUsage
 
+# Field order is deliberate: `reasoning` precedes `score` so the model commits to an
+# analysis *before* it picks a number (the "reason-then-score" ordering that raises
+# judge–human agreement for smaller open models; Prometheus/JudgeLM). Structured output
+# generates keys in schema order, so this ordering is what actually drives generation.
 _JUDGE_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "test_id": {"type": "string"},
         "target_response": {"type": "string"},
+        "reasoning": {"type": "string"},
         "score": {"type": "integer", "minimum": 1, "maximum": 5},
         "passed": {"type": "boolean"},
-        "reasoning": {"type": "string"},
         "evidence_span": {"type": "string"},
     },
     "required": [
         "test_id",
         "target_response",
+        "reasoning",
         "score",
         "passed",
-        "reasoning",
         "evidence_span",
     ],
     "additionalProperties": False,
@@ -107,7 +111,7 @@ async def judge(
                 system=system,
                 user=user,
                 schema=_JUDGE_SCHEMA,
-                schema_name="hallucination_verdict",
+                schema_name=f"{failure_mode.value}_verdict",
                 temperature=0.0,
             )
         except LLMError as exc:
