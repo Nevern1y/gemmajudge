@@ -47,3 +47,6 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# Deck build previews (the committed PDF is the artifact)
+deck/_preview_*.png
