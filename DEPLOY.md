@@ -49,10 +49,20 @@ If a needed Gemma variant isn't on Fireworks, serve it on MI300X (see
 `docs/amd_proof/`) and set `INFERENCE_BACKEND=mi300x`, `MI300X_BASE_URL=<public url>`.
 Note the notebook's 4-hour/24-hour budget — Fireworks is the safer public backend.
 
+## Troubleshooting: `ImportError` on the live app after a push
+
+Streamlit Cloud hot-reloads the main script on each push but keeps the Python process
+alive, so a module that was **already imported** (e.g. `gemmajudge.schemas`) is served
+from `sys.modules` and won't pick up *newly added* top-level names — you'll see
+`ImportError: cannot import name '<New>' from 'gemmajudge.schemas'`. Fix: **Manage app
+→ ⋮ → Reboot app** (a full process restart re-imports everything). Only needed when a
+push adds new module-level exports; ordinary edits hot-reload fine.
+
 ## Smoke check before submitting
 
 - Repo public, CI green on `main`.
 - `python -m gemmajudge.demo --n 10` returns a real ASR with your keys.
-- Live URL loads and completes a run in an incognito session.
+- Live URL loads; **🏆 Robustness leaderboard** tab shows the real Gemma run, and a
+  simulated live run completes in an incognito session.
 - `docs/amd_proof/` has the MI300X screenshot/logs/config committed.
 - `deck/GemmaJudge_deck.pdf` present. English-only outputs. No secrets committed.
