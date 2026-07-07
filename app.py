@@ -19,6 +19,7 @@ Two modes:
 from __future__ import annotations
 
 import asyncio
+import os
 
 import streamlit as st
 
@@ -28,6 +29,30 @@ from gemmajudge.orchestrator import run_eval
 from gemmajudge.schemas import EvalConfig, EvalResult, FailureMode
 
 st.set_page_config(page_title="GemmaJudge", page_icon="⚖️", layout="wide")
+
+
+def _load_secrets_into_env() -> None:
+    """Expose top-level ``st.secrets`` as environment variables.
+
+    The engine reads configuration from ``os.environ`` (see ``config.py``). On
+    Streamlit Community Cloud, secrets are provided via ``st.secrets``; copying the
+    top-level string entries into the environment lets the same env-based config
+    path work in the cloud with zero engine changes. No-op locally (no secrets
+    file) and never overwrites a real env var already set."""
+    try:
+        secret_keys = list(st.secrets.keys())
+    except Exception:  # noqa: BLE001 - no secrets configured (e.g. local dev)
+        return
+    for key in secret_keys:
+        try:
+            value = st.secrets[key]
+        except Exception:  # noqa: BLE001
+            continue
+        if isinstance(value, str):
+            os.environ.setdefault(key, value)
+
+
+_load_secrets_into_env()
 
 
 def _probe_settings():
