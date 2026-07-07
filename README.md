@@ -5,7 +5,7 @@
 GemmaJudge uses one open-weight model family (Gemma) in two adversarial roles — an
 **Attacker** that generates targeted adversarial test cases for a chosen failure mode,
 and a **Judge** that scores a target model's responses against a rubric — running the
-whole closed loop on AMD (self-hosted on MI300X via vLLM + ROCm, or Gemma on Fireworks'
+whole closed loop on AMD (self-hosted on AMD GPUs via vLLM + ROCm, or Gemma on Fireworks'
 AMD-hosted infrastructure).
 
 Built for the **AMD Developer Hackathon: ACT II — Track 3 (Unicorn)**.
@@ -62,10 +62,17 @@ cp .env.example .env        # fill in your keys — never commit .env
 streamlit run app.py
 ```
 
+Or with Docker (the submission is containerized — AMD ACT II requirement):
+
+```bash
+docker build -t gemmajudge .
+docker run --rm -p 8501:8501 --env-file .env gemmajudge   # open http://localhost:8501
+```
+
 ### Try it in 30 seconds — no keys, no network
 
 A **simulated** backend runs the whole attack→run→judge loop offline, so you can see
-the product before wiring up Fireworks/MI300X:
+the product before wiring up Fireworks/AMD:
 
 ```bash
 python -m gemmajudge.demo --offline        # full report in your terminal
@@ -104,12 +111,19 @@ All configuration is via environment variables — nothing is hardcoded. See
 `INFERENCE_BACKEND`:
 
 - `fireworks` — Gemma on Fireworks' AMD-hosted infra (powers the live demo URL).
-- `mi300x` — Gemma self-hosted on AMD Dev Cloud MI300X via vLLM + ROCm.
+- `mi300x` — Gemma self-hosted on an AMD GPU (AMD Developer Cloud) via vLLM + ROCm.
+  The committed proof used an AMD Radeon PRO W7900 (gfx1100); the same backend serves
+  an AMD Instinct MI300X unchanged.
 
 ## AMD compute proof
 
-Proof that Gemma runs on AMD MI300X (vLLM/ROCm config + deploy logs/screenshot) lives in
-[`docs/amd_proof/`](docs/amd_proof/). This is a Track 3 requirement.
+A **real GemmaJudge run on AMD** lives in [`docs/amd_proof/w7900/`](docs/amd_proof/w7900/):
+Gemma-3-4b-it (attacker + judge) and Gemma-3-1b-it (target) self-hosted via **vLLM + ROCm 7.2
+on an AMD Radeon PRO W7900 (gfx1100)** on AMD Developer Cloud — with committed `rocm-smi`
+output, vLLM serving logs, the launch command, and a real `eval_result.json` (hallucination
+**ASR 80%**, judge self-consistency **stdev 0.00**, 136.9 tok/s). The `mi300x` backend and the
+[`docs/amd_proof/mi300x_gemma.ipynb`](docs/amd_proof/mi300x_gemma.ipynb) notebook are included
+as the AMD Instinct reference path. This satisfies the Track 3 AMD-compute requirement.
 
 ## License
 
@@ -117,5 +131,5 @@ Proof that Gemma runs on AMD MI300X (vLLM/ROCm config + deploy logs/screenshot) 
 
 ## Acknowledgements
 
-Gemma is an open-weight model family by Google DeepMind. AMD Instinct™ MI300X + ROCm and
-Fireworks AI provide the inference infrastructure.
+Gemma is an open-weight model family by Google DeepMind. AMD (ROCm on AMD Developer Cloud)
+and Fireworks AI provide the inference infrastructure.
