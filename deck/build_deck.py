@@ -188,7 +188,7 @@ def slide_solution(c):
     # AMD band under attacker+judge
     c.setFillColor(AMD)
     c.setFont("Helvetica-Bold", 9)
-    c.drawString(x0, y - 0.28 * inch, "▲ both Gemma roles run on AMD  (MI300X via vLLM+ROCm, or Fireworks' AMD-hosted infra)")
+    c.drawString(x0, y - 0.28 * inch, "▲ both Gemma roles run on AMD  (self-hosted via vLLM + ROCm, or Fireworks' AMD-hosted infra)")
     _bullets(c, [
         ("Config → generate N adversarial prompts → run the target → judge each with "
          "written reasoning → report. Fully automated, no human in the loop.", INK, False),
@@ -254,10 +254,11 @@ def slide_amd(c):
     _bullets(c, [
         ("Gemma runs in BOTH roles — attacker and judge. Swap in a generic LLM and the "
          "\"one family attacks and grades itself\" story breaks. It's the signature, not a detail.", INK, True),
-        ("Proof-of-compute on AMD Instinct MI300X: Gemma served via vLLM + ROCm 7.2 "
-         "(committed config + rocm-smi + logs in the repo).", INK, False),
-        ("Live URL backed by Fireworks (AMD-hosted) for uptime; MI300X for the "
-         "screenshottable hardware proof.", INK, False),
+        ("Proof-of-compute on AMD Radeon PRO W7900 (gfx1100 / ROCm 7.2): Gemma served via "
+         "vLLM — a real run with committed rocm-smi + serve command + vLLM logs in the repo "
+         "(hallucination ASR 80%, judge self-consistency stdev 0.00).", INK, False),
+        ("Live URL backed by Fireworks (AMD-hosted) for uptime; self-hosted AMD (Radeon W7900, "
+         "ROCm) for the screenshottable hardware proof.", INK, False),
         ("On-screen: model id + inference backend on every run, plus a cost/throughput "
          "panel driven by actual measured token usage.", INK, False),
     ], 0.6 * inch, H - 1.7 * inch, W - 1.2 * inch)
@@ -312,7 +313,7 @@ def slide_vision(c):
     c.drawCentredString(W / 2, 1.18 * inch, "The same open-weight family attacks and grades itself — self-hosted on AMD.")
     c.setFillColor(HexColor("#AEB6D6"))
     c.setFont("Helvetica", 10)
-    c.drawCentredString(W / 2, 0.9 * inch, "GemmaJudge · team-4147 · Gemma × AMD Instinct MI300X")
+    c.drawCentredString(W / 2, 0.9 * inch, "GemmaJudge · team-4147 · Gemma × AMD (ROCm)")
 
 
 def build(path: str) -> None:
