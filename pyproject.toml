@@ -14,3 +14,6 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Put the repo root on sys.path so `import gemmajudge` and `from tests.conftest ...`
+# resolve under a bare `pytest` invocation (CI), not only under `python -m pytest`.
+pythonpath = ["."]

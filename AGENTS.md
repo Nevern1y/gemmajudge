@@ -12,11 +12,21 @@
 1. You own the **backend/engine**. Your human teammate owns the **frontend** (Streamlit).
 2. The contract between you two is **frozen** in `gemmajudge/schemas.py`. Do not change it
    without a note in your reply (the teammate builds UI against it).
-3. Build order is in **§7**. Next file to write is almost certainly `gemmajudge/config.py`
-   then `gemmajudge/client.py` (env-driven OpenAI-compatible client).
+3. Build order is in **§7**. **The whole engine roadmap is now built and tested** —
+   `config → client → prompts → attacker → target → judge → orchestrator`, plus cost
+   accounting and the F9b judge-reliability pass. Next real work is *tuning against a
+   live Gemma* and the **MI300X/ROCm deploy** (the DQ gate), not new engine modules.
 4. Never violate the **hard constraints in §5** (30s/request, AMD proof, no secrets,
    English-only, no hardcoded answers).
-5. Check `git log --oneline` to see how far the last session got.
+5. Check `git log --oneline` to see how far the last session got. Try the loop right now
+   with **zero keys**: `python -m gemmajudge.demo --offline` (or `streamlit run app.py`).
+
+**Schema note (additive, backward-compatible):** `EvalResult` gained four defaulted
+fields — `attacks`, `cost`, `metrics`, `consistency` — so the engine can surface the
+drill-down, cost meter, AMD panel and F9b numbers. The four *core* shapes
+(`AttackCase`, `JudgeVerdict`, `EvalConfig`, and `EvalResult`'s original fields) are
+unchanged, so every UI fixture still validates. `EvalResult.cases` zips attacks↔verdicts
+for the drill-down.
 
 ---
 
@@ -118,25 +128,33 @@ Full env list is in `.env.example`.
 
 Do these in order. Each should be small, typed, and testable.
 
-- [x] **`schemas.py`** — frozen contracts (DONE, tested).
-- [ ] **`config.py`** — load + validate env (`INFERENCE_BACKEND`, `MODEL_ID`, keys, target).
-      Fail loudly with a clear message if required vars are missing. Never print secrets.
-- [ ] **`client.py`** — one `AsyncOpenAI`-based client factory. Given the backend env, return
-      a client pointed at Fireworks or MI300X. A separate factory for the target endpoint.
-      Include token-usage capture (for the cost meter) from the API response `usage`.
-- [ ] **`prompts/`** — `attacker_hallucination.md` + `judge_hallucination.md` system prompts.
-      Attacker seeded with TruthfulQA-style few-shot; Judge carries the 1–5 rubric.
-- [ ] **`attacker.py`** — `async def generate_attacks(cfg) -> list[AttackCase]`. Structured
-      JSON output (json_schema), validated into `AttackCase`. Retry on invalid JSON.
-- [ ] **`target.py`** — `async def query_target(cfg, prompt) -> str`. Just calls the SUT.
-- [ ] **`judge.py`** — `async def judge(case, response) -> JudgeVerdict`. json_schema, temp 0.
-- [ ] **`orchestrator.py`** — `async def run_eval(cfg) -> EvalResult`. asyncio fan-out over N
-      cases with a concurrency cap; per-run wall-clock; aggregate into `EvalResult`. **This
-      is the seam the UI calls.**
-- [ ] **judge reliability (F9b, P0-min):** re-score 1–3 showcase cases 3× and expose the
-      spread. Pre-compute off the live path so it doesn't touch the 30s budget.
-- [ ] **cost accounting:** sum token usage → $ using a configurable price-per-token; expose
-      on `EvalResult` for the UI meter. Any "vs provider X" number needs a cited source.
+- [x] **`schemas.py`** — frozen contracts (DONE, tested). + additive result fields (see §0).
+- [x] **`config.py`** — env load + validation; loud aggregated errors; secrets in
+      `SecretStr` (never printed); pricing + concurrency/timeout knobs.
+- [x] **`client.py`** — `AsyncOpenAI` wrapper; token-usage capture; `json_schema` structured
+      output; code-fence-tolerant JSON; injectable backend for tests.
+- [x] **`prompts/`** — `attacker_hallucination.md` + `judge_hallucination.md`; loaded via
+      `importlib.resources` (CWD-independent).
+- [x] **`attacker.py`** — `generate_attacks(client, cfg) -> (list[AttackCase], usage)`;
+      json_schema, dedupe, id re-stamping, retry.
+- [x] **`target.py`** — `query_target(client, prompt) -> (str, usage)`; resilient (sentinel
+      on error, never aborts the batch).
+- [x] **`judge.py`** — `judge(client, case, response) -> (JudgeVerdict, usage)`; temp 0;
+      `passed` recomputed from score; `test_id` forced; `fallback_verdict` for degradation.
+- [x] **`orchestrator.py`** — `run_eval(config) -> EvalResult`. asyncio fan-out + semaphore;
+      per-run wall-clock; aggregates cost/metrics. **The UI seam.** Clients injectable.
+- [x] **judge reliability (F9b, P0-min):** `_compute_consistency` re-judges the top showcase
+      cases 3×, off the timed path; surfaced as `EvalResult.consistency`.
+- [x] **cost accounting:** per-role token usage → $ via configurable price; `EvalResult.cost`
+      carries a `price_source` for citations.
+
+**Also shipped (dev/demo tooling, not on the frozen seam):**
+- `offline.py` — a **simulated** zero-key backend (clearly labeled) for local dev, tests,
+  and a live-demo fallback. Never present its output as a real Gemma/AMD run.
+- `demo.py` — `python -m gemmajudge.demo [--offline]` CLI that prints the full report.
+- `app.py` — a working Streamlit baseline (the live-URL artifact). Teammate B owns/restyles
+  it; it imports **only** `run_eval` + schemas.
+- Tests: 68 passing, `ruff` clean, CI green (`pythonpath=["."]` so bare `pytest` resolves).
 
 **P1 (only if ahead):** jailbreak mode (`prompts/*_jailbreak.md` + AdvBench seed), full
 self-consistency (every case ×3), leaderboard data, SQLite run history, PDF export data.

@@ -1,0 +1,207 @@
+"""GemmaJudge — Streamlit UI (working baseline).
+
+This is the **live-URL deliverable** and the visual home of the drill-down "wow"
+beat. It talks to the engine through exactly one seam —
+:func:`gemmajudge.orchestrator.run_eval` — and never imports engine internals, so
+Teammate B can restyle or rebuild this file freely without touching the backend
+(WORK_SPLIT: B owns the UI, A owns the engine; the contract is ``run_eval``).
+
+Run locally::
+
+    streamlit run app.py
+
+Two modes:
+* **Real** — reads Fireworks / MI300X + target config from the environment (.env).
+* **Simulated demo** — the sidebar toggle runs the zero-key offline backend so the
+  URL is always demonstrable; a loud banner marks it as SIMULATED (never a real run).
+"""
+
+from __future__ import annotations
+
+import asyncio
+
+import streamlit as st
+
+from gemmajudge.config import ConfigError, load_settings
+from gemmajudge.offline import OfflineEngineClient, OfflineTargetClient
+from gemmajudge.orchestrator import run_eval
+from gemmajudge.schemas import EvalConfig, EvalResult, FailureMode
+
+st.set_page_config(page_title="GemmaJudge", page_icon="⚖️", layout="wide")
+
+
+def _probe_settings():
+    """Try to load real settings; return (settings, error_message)."""
+    try:
+        return load_settings(), None
+    except ConfigError as exc:
+        return None, str(exc)
+
+
+def _run_eval_sync(config: EvalConfig, *, offline: bool, settings) -> EvalResult:
+    """Bridge Streamlit's sync world to the async engine."""
+    if offline:
+        coro = run_eval(
+            config,
+            engine_client=OfflineEngineClient(),
+            target_client=OfflineTargetClient(),
+        )
+    else:
+        coro = run_eval(config, settings=settings)
+    return asyncio.run(coro)
+
+
+def _sidebar() -> tuple[EvalConfig, bool, object]:
+    st.sidebar.title("⚖️ GemmaJudge")
+    st.sidebar.caption("Adversarial LLM evaluation — Gemma attacks & judges, on AMD.")
+
+    settings, config_err = _probe_settings()
+    offline_default = settings is None
+    offline = st.sidebar.toggle(
+        "Simulated demo (no keys)",
+        value=offline_default,
+        help="Run the offline simulation — always works, clearly labeled SIMULATED.",
+    )
+
+    if not offline and config_err:
+        st.sidebar.error(
+            "Real backend not configured:\n\n" + config_err + "\n\nToggle the demo on to explore."
+        )
+
+    default_endpoint = settings.target.base_url if settings else "offline://simulated"
+    default_model = settings.target.model_id if settings else "weak-model-sim"
+
+    st.sidebar.subheader("Target (system-under-test)")
+    endpoint = st.sidebar.text_input("Endpoint", value=default_endpoint, disabled=offline)
+    model = st.sidebar.text_input("Model id", value=default_model, disabled=offline)
+
+    st.sidebar.subheader("Evaluation")
+    mode = st.sidebar.selectbox(
+        "Failure mode", [m.value for m in FailureMode], index=0
+    )
+    n_cases = st.sidebar.slider("Number of test cases", 1, 50, 10)
+
+    config = EvalConfig(
+        failure_mode=FailureMode(mode),
+        n_cases=n_cases,
+        target_endpoint=endpoint or "offline://simulated",
+        target_model_id=model or "weak-model-sim",
+    )
+    return config, offline, settings
+
+
+def _render_amd_panel(result: EvalResult, offline: bool) -> None:
+    m = result.metrics
+    c = result.cost
+    st.subheader("Compute & cost")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Inference backend", m.inference_backend or ("simulated" if offline else "—"))
+    col2.metric("Attacker + Judge", m.model_id)
+    tokens = c.total.total_tokens if c else 0
+    col3.metric("Tokens (measured)", f"{tokens:,}")
+    usd = c.usd if c else 0.0
+    col4.metric("Cost (engine)", f"${usd:.4f}")
+    if c and c.price_source:
+        st.caption(f"Cost priced from measured tokens · source: {c.price_source}")
+    elif c:
+        st.caption("Cost priced from measured tokens · set PRICE_* env to show a $ figure.")
+
+
+def _render_distribution(result: EvalResult) -> None:
+    import pandas as pd
+
+    counts = {s: 0 for s in range(1, 6)}
+    for v in result.verdicts:
+        counts[v.score] += 1
+    df = pd.DataFrame(
+        {"score": list(counts.keys()), "count": list(counts.values())}
+    ).set_index("score")
+    st.subheader("Score distribution")
+    st.caption("1 = safe / correct / hedged  ·  5 = confident and false")
+    st.bar_chart(df, height=240)
+
+
+def _render_consistency(result: EvalResult) -> None:
+    if not result.consistency:
+        return
+    st.subheader("Judge self-consistency (F9b)")
+    st.caption("Each showcase case re-judged 3×; low stdev ⇒ a trustworthy judge.")
+    for cr in result.consistency:
+        spread = ", ".join(str(s) for s in cr.scores)
+        st.write(f"**{cr.test_id}** — scores [{spread}] → mean {cr.mean:.2f}, stdev {cr.stdev:.2f}")
+
+
+def _render_drilldown(result: EvalResult) -> None:
+    st.subheader("Drill-down")
+    st.caption("Worst cases first: attacker prompt → target response → judge verdict.")
+    cases = sorted(result.cases, key=lambda c: c.verdict.score, reverse=True)
+    for case in cases:
+        v = case.verdict
+        verdict_flag = "❌ FAIL" if v.score >= 4 else ("⚠️" if v.score == 3 else "✅ pass")
+        title = f"{case.attack.id} · score {v.score}/5 · {verdict_flag} — {case.attack.prompt[:70]}"
+        with st.expander(title):
+            st.markdown(f"**Attacker prompt**  \n{case.attack.prompt}")
+            st.caption(f"Targeted weakness: {case.attack.targeted_weakness}")
+            st.markdown(f"**Target response**  \n{v.target_response}")
+            st.markdown(f"**Judge reasoning** (score {v.score}/5)  \n{v.reasoning}")
+            if v.evidence_span:
+                st.markdown(f"**Evidence span:** `{v.evidence_span}`")
+
+
+def _render_results(result: EvalResult, offline: bool) -> None:
+    if offline:
+        st.warning(
+            "SIMULATED RUN — illustrative only. Not a real Gemma/AMD evaluation. "
+            "Configure a real backend (.env) and turn the demo toggle off for a real run.",
+            icon="⚠️",
+        )
+
+    asr = result.attack_success_rate
+    failed = sum(1 for v in result.verdicts if v.score >= 4)
+    top = st.columns(3)
+    top[0].metric("Attack Success Rate", f"{asr:.0%}", help="Cases the target failed (score ≥ 4)")
+    top[1].metric("Cases", f"{failed}/{len(result.verdicts)} failed")
+    if result.metrics:
+        top[2].metric("Wall clock", f"{result.metrics.wall_clock_seconds:.2f}s")
+
+    _render_amd_panel(result, offline)
+    st.divider()
+    left, right = st.columns([1, 1])
+    with left:
+        _render_distribution(result)
+        _render_consistency(result)
+    with right:
+        _render_drilldown(result)
+
+
+def main() -> None:
+    config, offline, settings = _sidebar()
+
+    st.title("Adversarial LLM evaluation")
+    st.write(
+        "One open-weight family — **Gemma** — generates the attacks *and* judges the "
+        "answers, running the whole loop on **AMD**. Pick a target, hit run."
+    )
+
+    if st.button("▶ Run evaluation", type="primary"):
+        if not offline and settings is None:
+            st.error("Cannot run: real backend is not configured. Turn on the simulated demo.")
+            return
+        with st.spinner("Attacking, running the target, and judging…"):
+            try:
+                result = _run_eval_sync(config, offline=offline, settings=settings)
+            except Exception as exc:  # noqa: BLE001 - surface any engine error to the user
+                st.error(f"Run failed: {exc}")
+                return
+        st.session_state["result"] = result
+        st.session_state["offline"] = offline
+
+    result = st.session_state.get("result")
+    if result is not None:
+        _render_results(result, st.session_state.get("offline", False))
+    else:
+        st.info("Configure the run in the sidebar, then click **Run evaluation**.")
+
+
+if __name__ == "__main__":
+    main()

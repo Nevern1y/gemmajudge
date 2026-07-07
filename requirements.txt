@@ -3,6 +3,7 @@ openai>=1.40.0          # OpenAI-compatible client (works for Fireworks + self-h
 pydantic>=2.7.0         # data contracts / structured validation
 python-dotenv>=1.0.1    # load .env in local dev
 streamlit>=1.36.0       # UI
+pandas>=2.2.0           # score-distribution dataframe for the UI chart
 plotly>=5.22.0          # charts
 
 # Dev
