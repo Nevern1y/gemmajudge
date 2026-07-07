@@ -20,13 +20,25 @@ from __future__ import annotations
 
 import asyncio
 import os
+from pathlib import Path
 
 import streamlit as st
 
 from gemmajudge.config import ConfigError, load_settings
 from gemmajudge.offline import OfflineEngineClient, OfflineTargetClient
 from gemmajudge.orchestrator import run_eval
-from gemmajudge.schemas import EvalConfig, EvalResult, FailureMode
+from gemmajudge.schemas import (
+    EvalConfig,
+    EvalResult,
+    FailureMode,
+    LeaderboardResult,
+    TargetReport,
+)
+
+# Committed real-Gemma leaderboard (see docs/real_runs/). Rendered as the "real"
+# counterpart to the always-available simulated live run, so the public URL shows
+# genuine Gemma-3-27B numbers with zero running infrastructure.
+_LEADERBOARD_PATH = Path(__file__).parent / "docs" / "real_runs" / "leaderboard.json"
 
 st.set_page_config(page_title="GemmaJudge", page_icon="⚖️", layout="wide")
 
@@ -199,10 +211,98 @@ def _render_results(result: EvalResult, offline: bool) -> None:
         _render_drilldown(result)
 
 
-def main() -> None:
-    config, offline, settings = _sidebar()
+def _short(model_id: str) -> str:
+    """Trim ``accounts/fireworks/models/gemma-3-27b-it`` to ``gemma-3-27b-it``."""
+    return model_id.rsplit("/", 1)[-1]
 
-    st.title("Adversarial LLM evaluation")
+
+@st.cache_data(show_spinner=False)
+def _load_leaderboard() -> LeaderboardResult | None:
+    """Load the committed real-Gemma leaderboard, or None if it isn't present."""
+    try:
+        return LeaderboardResult.model_validate_json(
+            _LEADERBOARD_PATH.read_text(encoding="utf-8")
+        )
+    except Exception:  # noqa: BLE001 - missing/invalid artifact just hides the tab body
+        return None
+
+
+def _render_target_drilldown(board: LeaderboardResult, target: TargetReport) -> None:
+    cases = sorted(board.cases_for(target), key=lambda c: c.verdict.score, reverse=True)
+    for case in cases:
+        v = case.verdict
+        flag = "❌ FAIL" if v.score >= 4 else ("⚠️" if v.score == 3 else "✅ pass")
+        with st.expander(f"{flag} · score {v.score}/5 — {case.attack.prompt[:70]}"):
+            st.markdown(f"**Attacker prompt (Gemma)**  \n{case.attack.prompt}")
+            st.markdown(f"**Target response**  \n{v.target_response}")
+            st.markdown(f"**Judge reasoning (Gemma, {v.score}/5)**  \n{v.reasoning}")
+            if v.evidence_span:
+                st.markdown(f"**Evidence span:** `{v.evidence_span}`")
+
+
+def _render_leaderboard() -> None:
+    board = _load_leaderboard()
+    if board is None:
+        st.info(
+            "No committed leaderboard yet. Generate one with "
+            "`python -m gemmajudge.leaderboard_demo --n 8 --out docs/real_runs/leaderboard.json`."
+        )
+        return
+
+    import pandas as pd
+
+    st.subheader("Robustness leaderboard — a real Gemma run")
+    st.success(
+        f"REAL RUN — Gemma **{_short(board.engine_model_id)}** (attacker **and** judge) "
+        f"red-teamed **{len(board.targets)} models** with one shared set of "
+        f"**{len(board.attacks)}** adversarial prompts. Actual open weights, not simulated.",
+        icon="✅",
+    )
+    st.caption(
+        "ASR = fraction of prompts the target failed (Gemma judge score ≥ 4). "
+        "Higher = more hallucination-prone under Gemma's probing."
+    )
+
+    ranked = board.ranked
+    rows = [
+        {
+            "rank": i,
+            "target": _short(t.target_model_id),
+            "ASR": t.attack_success_rate,
+            "failed": f"{t.n_failed}/{t.n_cases}",
+            "mean score": round(t.mean_score, 2),
+        }
+        for i, t in enumerate(ranked, start=1)
+    ]
+    left, right = st.columns([1, 1])
+    with left:
+        st.dataframe(
+            pd.DataFrame(rows).set_index("rank"),
+            use_container_width=True,
+            column_config={"ASR": st.column_config.NumberColumn(format="%.0f%%")}
+            if hasattr(st, "column_config")
+            else None,
+        )
+    with right:
+        chart = pd.DataFrame(
+            {"target": [r["target"] for r in rows], "ASR": [r["ASR"] for r in rows]}
+        ).set_index("target")
+        st.bar_chart(chart, height=260)
+
+    c = board.cost
+    if c:
+        st.caption(f"Measured over {c.total.total_tokens:,} tokens · "
+                   f"failure mode: {board.failure_mode.value} · backend: "
+                   f"{board.inference_backend or 'gemma'}")
+
+    st.divider()
+    st.markdown("**Drill-down** — pick a target to see how Gemma judged each case:")
+    labels = [f"{_short(t.target_model_id)} · ASR {t.attack_success_rate:.0%}" for t in ranked]
+    choice = st.selectbox("Target", range(len(ranked)), format_func=lambda i: labels[i])
+    _render_target_drilldown(board, ranked[choice])
+
+
+def _live_eval_tab(config: EvalConfig, offline: bool, settings: object) -> None:
     st.write(
         "One open-weight family — **Gemma** — generates the attacks *and* judges the "
         "answers, running the whole loop on **AMD**. Pick a target, hit run."
@@ -226,6 +326,20 @@ def main() -> None:
         _render_results(result, st.session_state.get("offline", False))
     else:
         st.info("Configure the run in the sidebar, then click **Run evaluation**.")
+
+
+def main() -> None:
+    config, offline, settings = _sidebar()
+
+    st.title("Adversarial LLM evaluation")
+
+    tab_live, tab_board = st.tabs(
+        ["▶ Live evaluation", "🏆 Robustness leaderboard (real Gemma)"]
+    )
+    with tab_live:
+        _live_eval_tab(config, offline, settings)
+    with tab_board:
+        _render_leaderboard()
 
 
 if __name__ == "__main__":

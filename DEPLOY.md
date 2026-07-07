@@ -12,27 +12,36 @@ path: **Streamlit Community Cloud**, backed by **Fireworks** (managed uptime —
 3. In **Advanced settings → Secrets**, paste (these become env vars):
    ```toml
    INFERENCE_BACKEND = "fireworks"
-   MODEL_ID = "accounts/fireworks/models/gemma-4-31b-it"
+   # Gemma is DEPLOY-ONLY on Fireworks (see the ⚠️ note below): MODEL_ID is your
+   # on-demand deployment path, not a serverless model id.
+   MODEL_ID = "accounts/<your-account>/deployments/<deployment-id>"
    FIREWORKS_API_KEY = "fw_..."
    FIREWORKS_BASE_URL = "https://api.fireworks.ai/inference/v1"
    TARGET_ENDPOINT = "https://api.fireworks.ai/inference/v1"
-   TARGET_MODEL_ID = "accounts/fireworks/models/gemma-3-4b-it"
+   TARGET_MODEL_ID = "accounts/fireworks/models/gpt-oss-120b"  # a serverless target
    TARGET_API_KEY = "fw_..."
    PRICE_PER_1K_PROMPT_TOKENS = "0"
    PRICE_PER_1K_COMPLETION_TOKENS = "0"
    PRICE_SOURCE = "Fireworks pricing 2026-07"
    ```
-   Confirmed available on Fireworks (2026-07-07): `gemma-4-31b-it` (strong,
-   attacker+judge) and `gemma-3-4b-it` (weak target). Both serverless / pay-per-token.
+   ⚠️ **Verified 2026-07-07: Fireworks has NO serverless Gemma** — every Gemma model
+   (`gemma-3-4b/12b/27b-it`, `gemma-4-*`) is **deploy-only** (dedicated GPU). To run
+   Gemma as the engine you first create an on-demand deployment (Model Library →
+   the Gemma model → **Create Deployment**), wait for **Ready** (H100 capacity can be
+   scarce — retry if it says "no available capacity"), then use its
+   `accounts/<acct>/deployments/<id>` path as `MODEL_ID`. Serverless models
+   (`gpt-oss-120b`, `glm-5p1/2`, `deepseek-v4-pro`, `kimi-k2p6`) make good *targets*.
+   Remember to **delete the deployment** when done — it bills per GPU-hour.
    (Streamlit maps `st.secrets` and env; our `config.load_settings()` reads env, and
    `python-dotenv` is a no-op there — the platform vars win.)
 4. Deploy. First load installs `requirements.txt` (includes `streamlit`, `openai`,
    `pydantic`, `pandas`). The app reads the secrets above and runs real Fireworks calls.
+   Even with **no** engine configured, the **🏆 Robustness leaderboard** tab always
+   renders the committed real Gemma-3-27B run (`docs/real_runs/leaderboard.json`).
 5. Verify from an incognito window before submitting.
 
-**Model ids (confirmed 2026-07-07 on this account):** attacker+judge =
-`gemma-4-31b-it`; weak target = `gemma-3-4b-it` (or `gemma-3-1b-it` for a weaker,
-more dramatic target). Re-list any time with `python scripts/probe_fireworks.py`.
+**For the AMD story, prefer MI300X** (below): it is the DQ-gate proof *and* avoids the
+Fireworks H100 capacity/billing dance. Fireworks is the convenience live backend only.
 
 ## Fallback: point the URL at the self-hosted MI300X endpoint
 

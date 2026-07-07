@@ -30,6 +30,29 @@ config (target endpoint, failure mode, N)
    test cases                                per case              cost meter, AMD panel
 ```
 
+## Robustness leaderboard
+
+The same loop scales past a single target: **one** Gemma-generated attack set, run
+against **many** models, ranked by Attack Success Rate — a self-hosted, open-weight
+red-team + judge that benchmarks any model's hallucination robustness on hardware you
+control. This is a **real run** (Gemma-3-27B judge on Fireworks, 8 shared prompts):
+
+| # | target | ASR | failed |
+|---|---|---|---|
+| 1 | glm-5p1 | 25% | 2/8 |
+| 2 | deepseek-v4-pro | 25% | 2/8 |
+| 3 | glm-5p2 | 25% | 2/8 |
+| 4 | kimi-k2p6 | 12% | 1/8 |
+| 5 | gpt-oss-120b | 0% | 0/8 |
+
+Full data + methodology: [`docs/real_runs/`](docs/real_runs/). It's the **🏆 Robustness
+leaderboard** tab in the app, and reproducible from the CLI:
+
+```bash
+python -m gemmajudge.leaderboard_demo --n 8 \
+    --targets accounts/fireworks/models/glm-5p1,accounts/fireworks/models/gpt-oss-120b
+```
+
 ## Quickstart
 
 ```bash
