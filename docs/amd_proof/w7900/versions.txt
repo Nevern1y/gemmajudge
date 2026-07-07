@@ -1,0 +1,5 @@
+torch 2.9.1+gitff65f5b
+vllm 0.16.1.dev0+g89a77b108.d20260318
+hip 7.2.53211-e1a6bc5663
+dev 
+count 1
