@@ -132,9 +132,13 @@ async def judge(
         )
         return verdict, total_usage
 
-    raise LLMError(
+    # Carry the tokens already spent on failed attempts so the orchestrator can still
+    # bill them to the cost meter (otherwise real usage is silently dropped).
+    error = LLMError(
         f"judge failed to score {case.id} after {max_attempts} attempts: {last_error}"
     )
+    error.usage = total_usage
+    raise error
 
 
 def fallback_verdict(case: AttackCase, response: str, reason: str) -> JudgeVerdict:

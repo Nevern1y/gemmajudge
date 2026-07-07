@@ -50,7 +50,12 @@ class ChatBackend(Protocol):
 
 
 class LLMError(RuntimeError):
-    """A model call failed or returned an unusable payload."""
+    """A model call failed or returned an unusable payload.
+
+    ``usage`` optionally carries any tokens already spent before the failure (e.g.
+    across retry attempts), so callers can still account for real cost on error."""
+
+    usage: TokenUsage | None = None
 
 
 @dataclass(slots=True)
@@ -105,11 +110,18 @@ class LLMClient:
 
     @classmethod
     def from_endpoint(cls, endpoint: EndpointSettings, *, timeout: float) -> LLMClient:
-        """Build a client backed by a real ``AsyncOpenAI`` for the given endpoint."""
+        """Build a client backed by a real ``AsyncOpenAI`` for the given endpoint.
+
+        ``max_retries=0`` is deliberate: the SDK's default (2) would let one logical
+        request take up to ~3× ``timeout`` on a slow/flaky endpoint, blowing the
+        30s/request hard rule. We retry at the application layer instead (attacker /
+        judge re-issue whole calls), so every *individual* HTTP request stays bounded
+        by ``timeout``."""
         backend = AsyncOpenAI(
             base_url=endpoint.base_url,
             api_key=endpoint.api_key.get_secret_value(),
             timeout=timeout,
+            max_retries=0,
         )
         return cls(backend, endpoint.model_id)
 
@@ -195,25 +207,69 @@ class LLMClient:
 
 
 def _extract_json(text: str) -> dict[str, Any]:
-    """Parse a JSON object from a completion, tolerating markdown code fences.
+    """Parse a JSON object from a completion, tolerating fences and prose.
 
-    Some servers wrap JSON in ```json ... ``` even under json mode; we strip a
-    fence if present, then parse. Raises :class:`LLMError` on failure."""
+    Real servers wrap JSON in ```json ... ``` fences, prepend "Here you go:", or
+    append a trailing remark. We try, in order: the whole text, the contents of a
+    code fence, and the first balanced ``{...}`` object anywhere in the text —
+    returning the first candidate that parses to a dict. Raises :class:`LLMError`
+    if none do."""
+    for candidate in _json_candidates(text):
+        try:
+            parsed = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            return parsed
+    preview = text.strip()[:200]
+    raise LLMError(f"expected a JSON object, got: {preview!r}")
+
+
+def _json_candidates(text: str) -> list[str]:
+    """Yield progressively more permissive JSON candidate substrings."""
     stripped = text.strip()
+    candidates = [stripped]
     if stripped.startswith("```"):
-        # drop the opening fence line (``` or ```json) and the trailing fence
-        inner = stripped.split("\n", 1)[1] if "\n" in stripped else ""
-        if inner.rstrip().endswith("```"):
-            inner = inner.rstrip()[:-3]
-        stripped = inner.strip()
-    try:
-        parsed = json.loads(stripped)
-    except json.JSONDecodeError as exc:
-        preview = stripped[:200]
-        raise LLMError(f"expected JSON, got: {preview!r}") from exc
-    if not isinstance(parsed, dict):
-        raise LLMError(f"expected a JSON object, got {type(parsed).__name__}")
-    return parsed
+        body = stripped[3:]
+        if "\n" in body:  # drop an optional language tag (```json) on the first line
+            body = body.split("\n", 1)[1]
+        end = body.find("```")  # cut at the closing fence, ignoring any trailing prose
+        if end != -1:
+            body = body[:end]
+        candidates.append(body.strip())
+    obj = _first_json_object(stripped)
+    if obj is not None:
+        candidates.append(obj)
+    return candidates
+
+
+def _first_json_object(text: str) -> str | None:
+    """Return the first balanced ``{...}`` substring, respecting string literals."""
+    start = text.find("{")
+    if start == -1:
+        return None
+    depth = 0
+    in_str = False
+    escape = False
+    for i in range(start, len(text)):
+        ch = text[i]
+        if in_str:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : i + 1]
+    return None
 
 
 def make_engine_client(settings: Settings) -> LLMClient:

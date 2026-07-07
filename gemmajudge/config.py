@@ -200,6 +200,14 @@ def load_settings(env: dict[str, str] | None = None) -> Settings:
     request_timeout_s = _get_float(env, "REQUEST_TIMEOUT_S", 25.0)
     if request_timeout_s <= 0:
         raise ConfigError(f"REQUEST_TIMEOUT_S must be > 0, got {request_timeout_s}")
+    if request_timeout_s > 30:
+        # Enforce the all-tracks 30s/request hard rule at the config boundary, so a
+        # slow-target tweak can't silently breach it (the field is the per-request
+        # ceiling passed straight to the HTTP client).
+        raise ConfigError(
+            f"REQUEST_TIMEOUT_S must be <= 30 to respect the 30s/request rule, "
+            f"got {request_timeout_s}"
+        )
 
     # These locals are only reached when `missing` is empty, so they are all set.
     return Settings(

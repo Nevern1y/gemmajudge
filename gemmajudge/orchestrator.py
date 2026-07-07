@@ -66,7 +66,9 @@ async def _run_one_case(
             )
         except Exception as exc:  # noqa: BLE001 - degrade, don't abort the run
             verdict = fallback_verdict(case, response, reason=str(exc)[:120])
-            judge_usage = TokenUsage()
+            # Recover any tokens the failed judge attempts spent (see LLMError.usage),
+            # so a judge failure doesn't silently under-count the cost meter.
+            judge_usage = getattr(exc, "usage", None) or TokenUsage()
     return verdict, target_usage, judge_usage
 
 
@@ -132,11 +134,16 @@ async def run_eval(
         ``metrics`` and ``consistency`` — everything the report/drill-down/AMD panel
         need.
     """
-    owns_clients = engine_client is None or target_client is None
-    if owns_clients:
+    # Track ownership PER CLIENT: run_eval must close only the clients it created,
+    # never a client the caller injected (even if the caller injects just one).
+    owns_engine = engine_client is None
+    owns_target = target_client is None
+    if owns_engine or owns_target:
         settings = settings or load_settings()
-        engine_client = engine_client or make_engine_client(settings)
-        target_client = target_client or make_target_client(settings)
+    if owns_engine:
+        engine_client = make_engine_client(settings)
+    if owns_target:
+        target_client = make_target_client(settings)
 
     max_concurrency = settings.max_concurrency if settings else 8
     backend_label = settings.backend.value if settings else ""
@@ -172,10 +179,10 @@ async def run_eval(
             )
             judge_usage = judge_usage + consistency_usage
     finally:
-        if owns_clients:
-            # We created the clients; we close them. Injected clients are the
-            # caller's to manage.
+        # Close only what we created; injected clients are the caller's to manage.
+        if owns_engine:
             await _safe_close(engine_client)
+        if owns_target:
             await _safe_close(target_client)
 
     # --- aggregate cost + metrics -------------------------------------------

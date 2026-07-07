@@ -17,6 +17,8 @@ import argparse
 import asyncio
 import sys
 
+from pydantic import ValidationError
+
 from gemmajudge.config import ConfigError, load_settings
 from gemmajudge.offline import OfflineEngineClient, OfflineTargetClient
 from gemmajudge.orchestrator import run_eval
@@ -155,6 +157,10 @@ def main(argv: list[str] | None = None) -> int:
     except ConfigError as exc:
         print(f"Configuration error: {exc}", file=sys.stderr)
         print("Tip: run with --offline to try the simulated demo without keys.", file=sys.stderr)
+        return 2
+    except ValidationError as exc:
+        # e.g. --n outside EvalConfig's allowed [1, 100] range.
+        print(f"Invalid arguments: {exc}", file=sys.stderr)
         return 2
     _print_report(result, offline=args.offline)
     return 0
