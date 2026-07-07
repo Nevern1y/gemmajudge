@@ -1,8 +1,9 @@
 # Deploying the live demo URL
 
 The auto-screener checks a **live URL** (one of the three inspected artifacts). Fastest
-path: **Streamlit Community Cloud**, backed by **Fireworks** (managed uptime — no MI300X
-4-hour budget worry). Keep MI300X for the screenshottable AMD proof (`docs/amd_proof/`).
+path: **Streamlit Community Cloud**, backed by **Fireworks** (managed uptime — no
+AMD-notebook 4-hour budget worry). Keep the self-hosted AMD run for the screenshottable
+AMD proof (`docs/amd_proof/`).
 
 ## Streamlit Community Cloud (recommended)
 
@@ -40,14 +41,14 @@ path: **Streamlit Community Cloud**, backed by **Fireworks** (managed uptime —
    renders the committed real Gemma-3-27B run (`docs/real_runs/leaderboard.json`).
 5. Verify from an incognito window before submitting.
 
-**For the AMD story, prefer MI300X** (below): it is the DQ-gate proof *and* avoids the
-Fireworks H100 capacity/billing dance. Fireworks is the convenience live backend only.
+**For the AMD story, the self-hosted AMD run** (below) is the DQ-gate proof *and* avoids
+the Fireworks H100 capacity/billing dance. Fireworks is the convenience live backend only.
 
-## Fallback: point the URL at the self-hosted MI300X endpoint
+## Fallback: point the URL at the self-hosted AMD endpoint
 
-If a needed Gemma variant isn't on Fireworks, serve it on MI300X (see
+If a needed Gemma variant isn't on Fireworks, serve it on a self-hosted AMD GPU (see
 `docs/amd_proof/`) and set `INFERENCE_BACKEND=mi300x`, `MI300X_BASE_URL=<public url>`.
-Note the notebook's 4-hour/24-hour budget — Fireworks is the safer public backend.
+Note the AMD notebook's 4-hour/24-hour budget — Fireworks is the safer public backend.
 
 ## Troubleshooting: `ImportError` on the live app after a push
 
@@ -61,8 +62,9 @@ push adds new module-level exports; ordinary edits hot-reload fine.
 ## Smoke check before submitting
 
 - Repo public, CI green on `main`.
+- `docker build -t gemmajudge .` succeeds and `docker run -p 8501:8501 gemmajudge` serves the app (AMD ACT II requires a containerized submission).
 - `python -m gemmajudge.demo --n 10` returns a real ASR with your keys.
 - Live URL loads; **🏆 Robustness leaderboard** tab shows the real Gemma run, and a
   simulated live run completes in an incognito session.
-- `docs/amd_proof/` has the MI300X screenshot/logs/config committed.
+- `docs/amd_proof/w7900/` has the AMD (Radeon W7900) `rocm-smi` + vLLM logs + serve command + a real `eval_result.json` committed.
 - `deck/GemmaJudge_deck.pdf` present. English-only outputs. No secrets committed.
