@@ -268,7 +268,7 @@ def _render_leaderboard() -> None:
         {
             "rank": i,
             "target": _short(t.target_model_id),
-            "ASR": t.attack_success_rate,
+            "ASR": f"{t.attack_success_rate:.0%}",
             "failed": f"{t.n_failed}/{t.n_cases}",
             "mean score": round(t.mean_score, 2),
         }
@@ -276,16 +276,11 @@ def _render_leaderboard() -> None:
     ]
     left, right = st.columns([1, 1])
     with left:
-        st.dataframe(
-            pd.DataFrame(rows).set_index("rank"),
-            use_container_width=True,
-            column_config={"ASR": st.column_config.NumberColumn(format="%.0f%%")}
-            if hasattr(st, "column_config")
-            else None,
-        )
+        st.dataframe(pd.DataFrame(rows).set_index("rank"), use_container_width=True)
     with right:
         chart = pd.DataFrame(
-            {"target": [r["target"] for r in rows], "ASR": [r["ASR"] for r in rows]}
+            {"target": [_short(t.target_model_id) for t in ranked],
+             "ASR (%)": [round(t.attack_success_rate * 100) for t in ranked]}
         ).set_index("target")
         st.bar_chart(chart, height=260)
 
