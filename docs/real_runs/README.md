@@ -11,8 +11,9 @@ responses, not the simulated demo. They were produced on **2026-07-07**.
   sides of the loop.
 - **Backend note:** Fireworks has **no serverless Gemma** (all Gemma models are
   deploy-only), so the judge ran on a dedicated deployment. The *same*
-  OpenAI-compatible code path runs Gemma on **AMD MI300X** — see
-  [`../amd_proof/`](../amd_proof/) for the AMD version (the DQ-gate proof).
+  OpenAI-compatible code path runs Gemma **self-hosted on AMD** (vLLM + ROCm) — see
+  [`../amd_proof/`](../amd_proof/) for the AMD proof-of-compute (a real **AMD Radeon
+  PRO W7900 / gfx1100** run; the DQ-gate proof).
 - **Targets:** live Fireworks **serverless** frontier models
   (`gpt-oss-120b`, `glm-5p1`, `glm-5p2`, `deepseek-v4-pro`, `kimi-k2p6`).
 - Total credit spend for all of this: **~$9** of the $50 grant.
@@ -40,5 +41,6 @@ responses, not the simulated demo. They were produced on **2026-07-07**.
 **Judge self-consistency (F9b):** re-judging showcase cases 3× gave
 `[5,5,5]`, `[1,1,1]`, `[1,1,1]` → **stdev 0.00** — the Gemma judge is stable.
 
-> Reproduce: set the engine env to a Gemma endpoint (Fireworks deployment or MI300X)
-> and run `python -m gemmajudge.leaderboard_demo --n 8 --targets <ids> --out out.json`.
+> Reproduce: set the engine env to a Gemma endpoint (Fireworks deployment or a
+> self-hosted AMD vLLM endpoint) and run
+> `python -m gemmajudge.leaderboard_demo --n 8 --targets <ids> --out out.json`.
