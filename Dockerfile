@@ -2,7 +2,7 @@
 # Not required for Track 3, but useful for a reproducible one-command run.
 #
 # Builds the Streamlit demo (app.py). The engine talks to Gemma over an
-# OpenAI-compatible endpoint - Fireworks (AMD-hosted) or self-hosted vLLM on AMD +
+# OpenAI-compatible endpoint - Fireworks or self-hosted vLLM on AMD +
 # ROCm - configured entirely via environment variables (see .env.example). With no
 # engine configured, the app still renders the committed real runs and the clearly
 # labelled simulated demo, so the container is always demonstrable.

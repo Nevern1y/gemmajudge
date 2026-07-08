@@ -188,7 +188,7 @@ def slide_solution(c):
     # AMD band under attacker+judge
     c.setFillColor(AMD)
     c.setFont("Helvetica-Bold", 9)
-    c.drawString(x0, y - 0.28 * inch, "▲ both Gemma roles run on AMD  (self-hosted via vLLM + ROCm, or Fireworks' AMD-hosted infra)")
+    c.drawString(x0, y - 0.28 * inch, "▲ both Gemma roles run on AMD  (self-hosted via vLLM + ROCm)")
     _bullets(c, [
         ("Config → generate N adversarial prompts → run the target → judge each with "
          "written reasoning → report. Fully automated, no human in the loop.", INK, False),
@@ -257,7 +257,7 @@ def slide_amd(c):
         ("Proof-of-compute on AMD Radeon PRO W7900 (gfx1100 / ROCm 7.2): Gemma served via "
          "vLLM — a real run with committed rocm-smi + serve command + vLLM logs in the repo "
          "(hallucination ASR 80%, judge self-consistency stdev 0.00).", INK, False),
-        ("Live URL backed by Fireworks (AMD-hosted) for uptime; self-hosted AMD (Radeon W7900, "
+        ("Live URL backed by Fireworks for uptime; self-hosted AMD (Radeon W7900, "
          "ROCm) for the screenshottable hardware proof.", INK, False),
         ("On-screen: model id + inference backend on every run, plus a cost/throughput "
          "panel driven by actual measured token usage.", INK, False),

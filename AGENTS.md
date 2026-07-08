@@ -101,7 +101,7 @@ and tested — reuse, don't redefine.
 1. **Response time < 30s per request** (all-tracks rule). → async fan-out; never run a huge
    batch on the live path. Instrument wall-clock per run. Batch of ~20 is the demo size.
 2. **AMD compute usage is REQUIRED or the project is disqualified.** Gemma must run on AMD:
-   self-hosted on MI300X (vLLM+ROCm) and/or Gemma on Fireworks' AMD-hosted infra. Proof
+   self-hosted on MI300X (vLLM+ROCm). Proof
    (config + logs + screenshot) must be committed under `docs/amd_proof/` by end of Day 3.
 3. **No secrets in git.** `.env` is gitignored; read all keys from env. We supply our OWN
    Fireworks keys — the `FIREWORKS_*`/`ALLOWED_MODELS` harness injection is a **Track 1**
@@ -113,7 +113,7 @@ and tested — reuse, don't redefine.
 ## 6. Inference backends (env-selected)
 
 `INFERENCE_BACKEND` picks where Attacker+Judge Gemma runs:
-- `fireworks` → Gemma on Fireworks (AMD-hosted). Powers the **live URL** (managed uptime).
+- `fireworks` → Gemma on Fireworks. Powers the **live URL** (managed uptime).
   Exact available Gemma model IDs must be confirmed from Fireworks (launch day was 6 Jul —
   confirm and set `MODEL_ID`).
 - `mi300x` → Gemma self-hosted on AMD Dev Cloud MI300X via vLLM+ROCm. Powers the

@@ -5,8 +5,7 @@
 GemmaJudge uses one open-weight model family (Gemma) in two adversarial roles — an
 **Attacker** that generates targeted adversarial test cases for a chosen failure mode,
 and a **Judge** that scores a target model's responses against a rubric — running the
-whole closed loop on AMD (self-hosted on AMD GPUs via vLLM + ROCm, or Gemma on Fireworks'
-AMD-hosted infrastructure).
+whole closed loop on AMD (self-hosted on AMD GPUs via vLLM + ROCm, or Gemma on Fireworks).
 
 Built for the **AMD Developer Hackathon: ACT II — Track 3 (Unicorn)**.
 
@@ -112,7 +111,7 @@ All configuration is via environment variables — nothing is hardcoded. See
 [`.env.example`](.env.example) for the full list. Two inference backends, selected by
 `INFERENCE_BACKEND`:
 
-- `fireworks` — Gemma on Fireworks' AMD-hosted infra (powers the live demo URL).
+- `fireworks` — Gemma on Fireworks (powers the live demo URL).
 - `mi300x` — Gemma self-hosted on an AMD GPU (AMD Developer Cloud) via vLLM + ROCm.
   The committed proof used an AMD Radeon PRO W7900 (gfx1100); the same backend serves
   an AMD Instinct MI300X unchanged.
