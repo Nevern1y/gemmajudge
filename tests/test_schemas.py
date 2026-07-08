@@ -126,3 +126,39 @@ def test_consistency_matches_prd_example():
     c = ConsistencyResult(test_id="tc_001", scores=[5, 5, 4])
     assert round(c.mean, 2) == 4.67
     assert round(c.stdev, 2) == 0.47
+
+from gemmajudge.schemas import LeaderboardResult, TargetReport
+
+def test_leaderboard_ranked_sorts_correctly():
+    # Helper to create a TargetReport with a specific ASR and mean score via verdicts
+    # A score >= 4 is a failure.
+    # To get ASR 1.0 and mean 5.0, use one verdict with score 5
+    t1 = TargetReport(target_model_id="t1", verdicts=[_verdict("1", 5)]) # ASR=1.0, Mean=5.0
+
+    # To get ASR 1.0 and mean 4.0, use one verdict with score 4
+    t2 = TargetReport(target_model_id="t2", verdicts=[_verdict("2", 4)]) # ASR=1.0, Mean=4.0
+
+    # To get ASR 0.5 and mean 3.0, use one with score 5 and one with score 1
+    t3 = TargetReport(target_model_id="t3", verdicts=[_verdict("3", 5), _verdict("4", 1)]) # ASR=0.5, Mean=3.0
+
+    # To get ASR 0.0 and mean 1.0, use one verdict with score 1
+    t4 = TargetReport(target_model_id="t4", verdicts=[_verdict("5", 1)]) # ASR=0.0, Mean=1.0
+
+    # To get ASR 0.5 and mean 2.5, use one with score 4 and one with score 1
+    t5 = TargetReport(target_model_id="t5", verdicts=[_verdict("6", 4), _verdict("7", 1)]) # ASR=0.5, Mean=2.5
+
+    board = LeaderboardResult(targets=[t4, t3, t2, t1, t5])
+
+    ranked = board.ranked
+    # Expected order: t1 (1.0, 5.0), t2 (1.0, 4.0), t3 (0.5, 3.0), t5 (0.5, 2.5), t4 (0.0, 1.0)
+    assert [t.target_model_id for t in ranked] == ["t1", "t2", "t3", "t5", "t4"]
+
+
+def test_leaderboard_ranked_empty_targets():
+    board = LeaderboardResult(targets=[])
+    assert board.ranked == []
+
+def test_leaderboard_ranked_no_verdicts():
+    t1 = TargetReport(target_model_id="t1", verdicts=[])
+    board = LeaderboardResult(targets=[t1])
+    assert board.ranked == [t1]
