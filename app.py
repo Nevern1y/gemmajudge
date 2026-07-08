@@ -726,7 +726,7 @@ def _render_amd_proof(settings: Any | None, config_error: str | None) -> None:
     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
     st.caption(
         "Pending files are shown honestly. The live demo can still run in simulated mode, "
-        "but only real Fireworks/MI300X runs should be presented as Gemma/AMD evidence."
+        "but only real MI300X/W7900 runs should be presented as Gemma/AMD evidence."
     )
 
 

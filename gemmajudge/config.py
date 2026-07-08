@@ -47,7 +47,7 @@ class ConfigError(RuntimeError):
 class InferenceBackend(StrEnum):
     """Where the Attacker + Judge Gemma runs (env ``INFERENCE_BACKEND``)."""
 
-    FIREWORKS = "fireworks"  # Gemma on Fireworks' AMD-hosted infra → live URL
+    FIREWORKS = "fireworks"  # Gemma on Fireworks → live URL
     MI300X = "mi300x"  # Gemma self-hosted on AMD Dev Cloud MI300X → AMD proof
 
 
