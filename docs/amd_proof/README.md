@@ -41,7 +41,7 @@ will be disqualified."*
    - writes `notes.md`,
    - tears the servers down to stop the budget clock.
    (Terminal alternative: [`serve_gemma_mi300x.sh`](serve_gemma_mi300x.sh).)
-3. **Screenshot** the `rocm-smi` cell and the ASR output — those are the deck visuals.
+3. **Screenshot** the `rocm-smi` cell and the ASR output — those are submission/demo visuals.
 4. Copy the notebook's `amd_proof_artifacts/*` into this folder and commit.
 
 ## Artifacts committed (the DQ gate is green when these exist)

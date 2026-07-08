@@ -5,8 +5,8 @@
 GemmaJudge uses one open-weight model family (Gemma) in two adversarial roles — an
 **Attacker** that generates targeted adversarial test cases for a chosen failure mode,
 and a **Judge** that scores a target model's responses against a rubric — running the
-whole closed loop on AMD (self-hosted on AMD GPUs via vLLM + ROCm, or Gemma on Fireworks'
-AMD-hosted infrastructure).
+closed loop with committed proof of Gemma self-hosted on AMD GPUs via vLLM + ROCm. The
+live demo can use a managed OpenAI-compatible backend for uptime.
 
 Built for the **AMD Developer Hackathon: ACT II — Track 3 (Unicorn)**.
 
@@ -22,7 +22,7 @@ reproducibility convenience, not as a submission gate.
 
 - **GitHub repository:** <https://github.com/Nevern1y/gemmajudge>
 - **Live demo URL:** <https://gemmajudge.streamlit.app/>
-- **Slide deck PDF:** [`deck/GemmaJudge_deck.pdf`](deck/GemmaJudge_deck.pdf)
+- **Slide deck PDF:** uploaded directly to the lablab.ai submission form.
 - **AMD proof-of-compute:** [`docs/amd_proof/w7900/`](docs/amd_proof/w7900/)
 - **Real Gemma leaderboard data:** [`docs/real_runs/`](docs/real_runs/)
 
@@ -87,7 +87,7 @@ docker run --rm -p 8501:8501 --env-file .env gemmajudge   # open http://localhos
 ### Try it in 30 seconds — no keys, no network
 
 A **simulated** backend runs the whole attack→run→judge loop offline, so you can see
-the product before wiring up Fireworks/AMD:
+the product before wiring up a real managed or self-hosted AMD backend:
 
 ```bash
 python -m gemmajudge.demo --offline        # full report in your terminal
@@ -95,7 +95,7 @@ python -m gemmajudge.demo --offline        # full report in your terminal
 ```
 
 > Offline mode is **clearly labeled SIMULATED** — it's for development and demo
-> fallback only. The real submission runs Gemma on AMD; canned output is never
+> fallback only. The real submission includes committed Gemma-on-AMD proof; canned output is never
 > presented as a real model run.
 
 ## The engine seam
@@ -125,8 +125,8 @@ All configuration is via environment variables — nothing is hardcoded. See
 [`.env.example`](.env.example) for the full list. Two inference backends, selected by
 `INFERENCE_BACKEND`:
 
-- `fireworks` — Gemma on Fireworks' AMD-hosted infra (powers the live demo URL).
-- `mi300x` — Gemma self-hosted on an AMD GPU (AMD Developer Cloud) via vLLM + ROCm.
+- `fireworks` — managed OpenAI-compatible backend for the live demo; not the AMD proof path.
+- `mi300x` — self-hosted OpenAI-compatible vLLM backend on an AMD GPU.
   The committed proof used an AMD Radeon PRO W7900 (gfx1100); the same backend serves
   an AMD Instinct MI300X unchanged.
 

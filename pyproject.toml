@@ -8,8 +8,8 @@ license = { text = "Apache-2.0" }
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-# docs/ and deck/ hold artifacts (the AMD MI300X notebook, the pitch-deck generator)
-# with notebook idiom and long slide-copy strings. Don't lint them as library source.
+# docs/ holds AMD proof notebooks/logs with notebook idiom and long copied outputs.
+# Don't lint it as library source.
 extend-exclude = ["docs", "deck"]
 
 [tool.ruff.lint]

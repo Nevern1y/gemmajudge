@@ -14,8 +14,8 @@
    without a note in your reply (the teammate builds UI against it).
 3. Build order is in **§7**. **The whole engine roadmap is now built and tested** —
    `config → client → prompts → attacker → target → judge → orchestrator`, plus cost
-   accounting and the F9b judge-reliability pass. Next real work is *tuning against a
-   live Gemma* and the **MI300X/ROCm deploy** (the DQ gate), not new engine modules.
+   accounting and the F9b judge-reliability pass. The DQ gate is satisfied by the
+   committed W7900/ROCm proof; MI300X remains a reference path, not an executed proof.
 4. Never violate the **hard constraints in §5** (30s/request, AMD proof, no secrets,
    English-only, no hardcoded answers).
 5. Check `git log --oneline` to see how far the last session got. Try the loop right now
@@ -78,7 +78,7 @@ Promptfoo already does; our angle is the self-hosted single-family closed loop o
 
 | You (AI architect) — **BACKEND** | Teammate (human) — **FRONTEND** |
 |---|---|
-| `schemas.py` (done), `config.py`, `client.py`, attacker, judge, async orchestrator, cost/token accounting, MI300X/ROCm + Fireworks wiring | Streamlit `app.py`, config form, results table, score-distribution chart, cost meter UI, drill-down panel, deck, video, submission |
+| `schemas.py` (done), `config.py`, `client.py`, attacker, judge, async orchestrator, cost/token accounting, self-hosted AMD/ROCm + managed endpoint wiring | Streamlit `app.py`, config form, results table, score-distribution chart, cost meter UI, drill-down panel, video, submission |
 | Expose ONE entrypoint the UI calls: `async def run_eval(config: EvalConfig) -> EvalResult` | Calls only `run_eval()`; never imports engine internals |
 
 **The integration seam is `run_eval(config) -> EvalResult`.** Keep that signature stable.
@@ -100,9 +100,9 @@ and tested — reuse, don't redefine.
 
 1. **Response time < 30s per request** (all-tracks rule). → async fan-out; never run a huge
    batch on the live path. Instrument wall-clock per run. Batch of ~20 is the demo size.
-2. **AMD compute usage is REQUIRED or the project is disqualified.** Gemma must run on AMD:
-   self-hosted on MI300X (vLLM+ROCm) and/or Gemma on Fireworks' AMD-hosted infra. Proof
-   (config + logs + screenshot) must be committed under `docs/amd_proof/` by end of Day 3.
+2. **AMD compute usage is REQUIRED or the project is disqualified.** Gemma must run on AMD.
+   The committed proof is self-hosted Gemma on an AMD Radeon PRO W7900 via vLLM+ROCm;
+   MI300X is a compatible reference path. Do not present Fireworks as the AMD proof.
 3. **No secrets in git.** `.env` is gitignored; read all keys from env. We supply our OWN
    Fireworks keys — the `FIREWORKS_*`/`ALLOWED_MODELS` harness injection is a **Track 1**
    mechanic and does NOT apply to Track 3.
@@ -113,12 +113,10 @@ and tested — reuse, don't redefine.
 ## 6. Inference backends (env-selected)
 
 `INFERENCE_BACKEND` picks where Attacker+Judge Gemma runs:
-- `fireworks` → Gemma on Fireworks (AMD-hosted). Powers the **live URL** (managed uptime).
-  Exact available Gemma model IDs must be confirmed from Fireworks (launch day was 6 Jul —
-  confirm and set `MODEL_ID`).
-- `mi300x` → Gemma self-hosted on AMD Dev Cloud MI300X via vLLM+ROCm. Powers the
-  **screenshottable AMD proof**. This path does NOT depend on launch-day availability
-  (open weights), so it's the robust backend for the AMD requirement.
+- `fireworks` → managed OpenAI-compatible endpoint for the **live URL** (uptime).
+  Do not claim this as the AMD proof path.
+- `mi300x` → Gemma self-hosted on an AMD GPU via vLLM+ROCm. The committed proof used
+  an AMD Radeon PRO W7900; MI300X is the AMD Instinct reference path.
 
 Both are **OpenAI-compatible**, so ONE client works for both — flip via env. The target
 model is a separate OpenAI-compatible endpoint (`TARGET_ENDPOINT` / `TARGET_MODEL_ID`).
@@ -189,7 +187,7 @@ gemmajudge/                 # repo root (this file is here)
 ## 10. Open items needing a human (don't block on these — note and proceed)
 
 1. Exact deadline HH:MM (lablab dashboard) — paste into README/PRD when known.
-2. Exact Gemma model IDs available on Fireworks post-launch — sets `MODEL_ID` for real.
+2. Exact live-demo backend deployment path (if using Fireworks or another managed endpoint) — sets `MODEL_ID` in deployment secrets only.
 3. Which weak model is the demo target — confirm it reliably hallucinates (Day-1 spike).
 
 > Private planning docs (full PRD, work-split, hackathon PDF) live OUTSIDE this repo in the

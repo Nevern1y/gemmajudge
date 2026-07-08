@@ -12,9 +12,9 @@ def build_cost(
 ) -> CostReport:
     """Turn measured per-role usage into a CostReport with a $ figure.
 
-    The $ figure prices the **engine** (Attacker+Judge) tokens, which is what runs
-    on the AMD-hosted Gemma; the target is a separate system whose price we don't
-    assume. If no pricing is configured, ``usd`` is a truthful ``0.0``."""
+    The $ figure prices the **engine** (Attacker+Judge) tokens for the configured
+    backend. The target is a separate system whose price we don't assume. If no
+    pricing is configured, ``usd`` is a truthful ``0.0``."""
     pricing = settings.pricing if settings else None
     if pricing is not None:
         engine_tokens = attacker + judge_usage

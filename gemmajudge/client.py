@@ -1,6 +1,6 @@
 """One OpenAI-compatible async client for every model GemmaJudge talks to.
 
-Fireworks, self-hosted vLLM on MI300X, and the target system-under-test are all
+Fireworks/managed endpoints, self-hosted vLLM on AMD GPUs, and the target system-under-test are all
 OpenAI-compatible, so a single thin wrapper over :class:`openai.AsyncOpenAI`
 serves all three — the only thing that changes is the endpoint, which comes from
 :mod:`gemmajudge.config`.

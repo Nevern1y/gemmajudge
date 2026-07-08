@@ -1,9 +1,9 @@
 # Deploying the live demo URL
 
-The auto-screener checks a **live URL** (one of the three inspected artifacts). Fastest
-path: **Streamlit Community Cloud**, backed by **Fireworks** (managed uptime — no
-AMD-notebook 4-hour budget worry). Keep the self-hosted AMD run for the screenshottable
-AMD proof (`docs/amd_proof/`).
+The auto-screener checks a **live URL** (one of the inspected artifacts). Fastest path:
+**Streamlit Community Cloud**, optionally backed by a managed OpenAI-compatible endpoint
+for uptime. Keep the self-hosted AMD run for the screenshottable AMD proof
+(`docs/amd_proof/`).
 
 ## Streamlit Community Cloud (recommended)
 
@@ -41,8 +41,8 @@ AMD proof (`docs/amd_proof/`).
    renders the committed real Gemma-3-27B run (`docs/real_runs/leaderboard.json`).
 5. Verify from an incognito window before submitting.
 
-**For the AMD story, the self-hosted AMD run** (below) is the DQ-gate proof *and* avoids
-the Fireworks H100 capacity/billing dance. Fireworks is the convenience live backend only.
+**For the AMD story, the self-hosted AMD run** is the DQ-gate proof. A managed backend is
+only for live-demo uptime and is not presented as the AMD-compute proof.
 
 ## Fallback: point the URL at the self-hosted AMD endpoint
 
@@ -68,4 +68,4 @@ push adds new module-level exports; ordinary edits hot-reload fine.
 - **🏆 Robustness leaderboard** tab shows the real Gemma run, and a simulated live run
   completes in an incognito session.
 - `docs/amd_proof/w7900/` has the AMD (Radeon W7900) `rocm-smi` + vLLM logs + serve command + a real `eval_result.json` committed.
-- `deck/GemmaJudge_deck.pdf` present. English-only outputs. No secrets committed.
+- Slide deck PDF uploaded to the lablab.ai submission form. English-only outputs. No secrets committed.
