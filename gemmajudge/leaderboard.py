@@ -24,7 +24,6 @@ from gemmajudge.config import Settings
 from gemmajudge.judge import fallback_verdict, judge
 from gemmajudge.schemas import (
     AttackCase,
-    CostReport,
     EvalConfig,
     FailureMode,
     JudgeVerdict,

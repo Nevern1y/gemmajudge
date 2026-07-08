@@ -3,6 +3,7 @@ from __future__ import annotations
 from gemmajudge.config import Settings
 from gemmajudge.schemas import CostReport, TokenUsage
 
+
 def build_cost(
     settings: Settings | None,
     attacker: TokenUsage,

@@ -31,7 +31,6 @@ from gemmajudge.judge import fallback_verdict, judge
 from gemmajudge.schemas import (
     AttackCase,
     ConsistencyResult,
-    CostReport,
     EvalConfig,
     EvalResult,
     JudgeVerdict,
