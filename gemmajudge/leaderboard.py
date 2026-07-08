@@ -24,7 +24,6 @@ from gemmajudge.config import Settings
 from gemmajudge.judge import fallback_verdict, judge
 from gemmajudge.schemas import (
     AttackCase,
-    CostReport,
     EvalConfig,
     FailureMode,
     JudgeVerdict,
@@ -33,6 +32,7 @@ from gemmajudge.schemas import (
     TokenUsage,
 )
 from gemmajudge.target import query_target
+from gemmajudge.utils.cost import build_cost
 
 
 async def _judge_one(
@@ -154,7 +154,7 @@ async def run_leaderboard(
             for target_client in target_clients:
                 await _safe_close(target_client)
 
-    cost = _build_cost(settings, attacker_usage, target_usage_total, judge_usage_total)
+    cost = build_cost(settings, attacker_usage, target_usage_total, judge_usage_total)
     return LeaderboardResult(
         failure_mode=config.failure_mode,
         engine_model_id=engine_client.model_id,
@@ -162,30 +162,6 @@ async def run_leaderboard(
         attacks=attacks,
         targets=reports,
         cost=cost,
-    )
-
-
-def _build_cost(
-    settings: Settings | None,
-    attacker: TokenUsage,
-    target: TokenUsage,
-    judge_usage: TokenUsage,
-) -> CostReport:
-    """Price the engine (Attacker+Judge) tokens, mirroring orchestrator._build_cost."""
-    pricing = settings.pricing if settings else None
-    if pricing is not None:
-        engine_tokens = attacker + judge_usage
-        usd = pricing.cost_usd(engine_tokens.prompt_tokens, engine_tokens.completion_tokens)
-        source = pricing.source
-    else:
-        usd = 0.0
-        source = None
-    return CostReport(
-        attacker=attacker,
-        target=target,
-        judge=judge_usage,
-        usd=usd,
-        price_source=source,
     )
 
 
