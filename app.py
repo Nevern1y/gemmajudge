@@ -578,11 +578,11 @@ def _render_worst_case_dossier(result: EvalResult) -> None:
         unsafe_allow_html=True,
     )
     st.markdown("**Gemma attack**")
-    st.write(case.attack.prompt)
+    st.write(_escape(case.attack.prompt))
     st.markdown("**Target response**")
-    st.write(verdict.target_response)
+    st.write(_escape(verdict.target_response))
     st.markdown("**Gemma judge**")
-    st.write(verdict.reasoning)
+    st.write(_escape(verdict.reasoning))
     if verdict.evidence_span:
         st.markdown(
             f'<div class="gj-evidence"><strong>Evidence span:</strong> '
@@ -608,12 +608,12 @@ def _render_case_expanders(result: EvalResult) -> None:
             f"{item.attack.id} · score {verdict.score}/5 · {label} · {item.attack.prompt[:82]}"
         ):
             st.markdown("**Gemma attack**")
-            st.write(item.attack.prompt)
+            st.write(_escape(item.attack.prompt))
             st.caption(f"Rationale: {item.attack.rationale}")
             st.markdown("**Target response**")
-            st.write(verdict.target_response)
+            st.write(_escape(verdict.target_response))
             st.markdown("**Gemma judge**")
-            st.write(verdict.reasoning)
+            st.write(_escape(verdict.reasoning))
             if verdict.evidence_span:
                 st.markdown(f"**Evidence span:** `{verdict.evidence_span}`")
 
@@ -628,11 +628,11 @@ def _render_target_drilldown(board: LeaderboardResult, target: TargetReport) -> 
             f"{item.attack.id} · score {verdict.score}/5 · {label} · {item.attack.prompt[:82]}"
         ):
             st.markdown("**Shared Gemma attack**")
-            st.write(item.attack.prompt)
+            st.write(_escape(item.attack.prompt))
             st.markdown("**Target response**")
-            st.write(verdict.target_response)
+            st.write(_escape(verdict.target_response))
             st.markdown("**Gemma judge**")
-            st.write(verdict.reasoning)
+            st.write(_escape(verdict.reasoning))
             if verdict.evidence_span:
                 st.markdown(f"**Evidence span:** `{verdict.evidence_span}`")
 
