@@ -69,7 +69,7 @@ open-weight family, **self-hosted on AMD** so eval data never leaves your hardwa
 judge isn't a metered closed API. Do NOT claim "nobody does adversarial generation" —
 Promptfoo already does; our angle is the self-hosted single-family closed loop on AMD.
 
-- **P0 failure mode: hallucination only.** Jailbreak = P1, bias = P2. Do not add P0 scope.
+- **Failure modes supported:** hallucination, jailbreak, and bias are all already implemented.
 - **Demo target (system-under-test):** a deliberately weak model (e.g. Gemma 3 4B) so
   failures are dramatic. Must be verified on Day 1 that it actually hallucinates on our
   seeded attacks (the "Day-1 spike").
@@ -156,7 +156,7 @@ Do these in order. Each should be small, typed, and testable.
   it; it imports **only** `run_eval` + schemas.
 - Tests: 68 passing, `ruff` clean, CI green (`pythonpath=["."]` so bare `pytest` resolves).
 
-**P1 (only if ahead):** jailbreak mode (`prompts/*_jailbreak.md` + AdvBench seed), full
+**Future plans:** full
 self-consistency (every case ×3), leaderboard data, SQLite run history, PDF export data.
 
 ## 8. Stack & conventions
