@@ -1,10 +1,7 @@
-"""GemmaJudge Mission Control Streamlit frontend.
+"""GemmaJudge Streamlit frontend.
 
-This file is intentionally a frontend-only shell around the frozen backend seam:
-``run_eval(config: EvalConfig) -> EvalResult``. It can run in two modes:
-
-* Real backend: Gemma attacker + judge through Fireworks or MI300X env config.
-* Simulated demo: zero-key offline backend, loudly labeled SIMULATED.
+Thin UI around the frozen backend seam: ``run_eval(config: EvalConfig) -> EvalResult``.
+The live path uses env/Streamlit secrets; the zero-key fallback is clearly marked simulated.
 """
 
 from __future__ import annotations
@@ -12,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import html
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -34,26 +32,39 @@ from gemmajudge.schemas import (
 ROOT = Path(__file__).parent
 LEADERBOARD_PATH = ROOT / "docs" / "real_runs" / "leaderboard.json"
 AMD_PROOF_DIR = ROOT / "docs" / "amd_proof"
+AMD_PROOF_RUN_DIR = AMD_PROOF_DIR / "w7900"
+AMD_PROOF_RESULT_PATH = AMD_PROOF_RUN_DIR / "eval_result.json"
+AMD_PROOF_SCREENSHOTS = (
+    AMD_PROOF_RUN_DIR / "proof.png",
+    ROOT.parent / "w7900_proof.png",
+)
 AMD_PROOF_FILES = (
     "rocm_smi.txt",
     "versions.txt",
     "vllm_engine.log",
+    "vllm_target.log",
     "serve_command.txt",
     "eval_result.json",
-    "mi300x_screenshot.png",
     "notes.md",
+    "proof.png",
 )
 
-AMD_RED = "#ED1C24"
-GEMMA_BLUE = "#4285F4"
-SAFE_GREEN = "#2EE59D"
-AMBER = "#F7B955"
-INK = "#EAF0FF"
-MUTED = "#9AA6C3"
+HISTORY_LIMIT = 12
+SOURCE_AMD_PROOF = "amd_proof"
+SOURCE_LIVE = "live"
+SOURCE_SIMULATED = "simulated"
+
+INK = "#050B14"
+MUTED = "#5B6878"
+BLUE = "#4DB8FF"
+BLUE_DARK = "#075D92"
+BLUE_SOFT = "#EAF7FF"
+LINE = "#D7EAF8"
+WHITE = "#FFFFFF"
 
 
 st.set_page_config(
-    page_title="GemmaJudge Mission Control",
+    page_title="GemmaJudge Live Demo",
     page_icon="GJ",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -65,112 +76,221 @@ def _install_theme() -> None:
         """
         <style>
         :root {
-            --gj-bg: #070911;
-            --gj-panel: rgba(14, 18, 32, 0.92);
-            --gj-panel-2: rgba(20, 27, 47, 0.88);
-            --gj-border: rgba(131, 148, 190, 0.22);
-            --gj-ink: #eaf0ff;
-            --gj-muted: #9aa6c3;
-            --gj-red: #ed1c24;
-            --gj-blue: #4285f4;
-            --gj-green: #2ee59d;
-            --gj-amber: #f7b955;
+            --gj-ink: #050b14;
+            --gj-muted: #5b6878;
+            --gj-blue: #4db8ff;
+            --gj-blue-dark: #075d92;
+            --gj-blue-soft: #eaf7ff;
+            --gj-line: #d7eaf8;
+            --gj-white: #ffffff;
         }
         .stApp {
             background:
-                radial-gradient(circle at top left, rgba(66, 133, 244, 0.18), transparent 30rem),
-                radial-gradient(circle at top right, rgba(237, 28, 36, 0.16), transparent 28rem),
-                linear-gradient(135deg, #070911 0%, #0b1020 52%, #090b12 100%);
+                radial-gradient(circle at 10% 0%, rgba(77, 184, 255, 0.23), transparent 28rem),
+                linear-gradient(180deg, #ffffff 0%, #f5fbff 100%);
             color: var(--gj-ink);
         }
         header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecoration"],
         #MainMenu, footer { display: none !important; visibility: hidden !important; }
-        .block-container { padding-top: 3.25rem; padding-bottom: 3rem; max-width: 1320px; }
-        h1, h2, h3 { letter-spacing: -0.04em; color: var(--gj-ink) !important; }
+        .block-container { max-width: 980px; padding-top: 1.2rem; padding-bottom: 2rem; }
+        h1, h2, h3 { color: var(--gj-ink) !important; letter-spacing: -0.03em; }
         p, li, label, .stMarkdown { color: var(--gj-ink); }
+        a { color: var(--gj-blue-dark); }
+        div[data-testid="stRadio"] [role="radiogroup"] {
+            gap: 0.45rem;
+            width: max-content;
+            max-width: 100%;
+            margin: 0 auto 1rem;
+            padding: 0.35rem;
+            border: 1px solid var(--gj-line);
+            border-radius: 999px;
+            background: rgba(234, 247, 255, 0.82);
+        }
+        div[data-testid="stRadio"] label {
+            border-radius: 999px;
+            padding: 0.18rem 0.62rem;
+        }
+        div[data-testid="stRadio"] label p {
+            color: var(--gj-muted) !important;
+            font-weight: 760;
+        }
         [data-testid="stMetric"] {
-            background: linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.018));
-            border: 1px solid var(--gj-border);
-            border-radius: 18px;
-            padding: 1rem;
+            background: rgba(255, 255, 255, 0.94);
+            border: 1px solid var(--gj-line);
+            border-radius: 16px;
+            padding: 0.72rem;
+            box-shadow: 0 12px 32px rgba(7, 93, 146, 0.07);
         }
         [data-testid="stMetricLabel"] p { color: var(--gj-muted) !important; }
         [data-testid="stMetricValue"] { color: var(--gj-ink) !important; }
+        .stButton button {
+            min-height: 2.75rem;
+            border-radius: 999px !important;
+            border: 1px solid var(--gj-line) !important;
+            background: var(--gj-white) !important;
+            color: var(--gj-ink) !important;
+            font-weight: 850 !important;
+        }
+        .stButton button[kind="primary"] {
+            background: var(--gj-blue-dark) !important;
+            color: var(--gj-white) !important;
+            border-color: var(--gj-blue-dark) !important;
+        }
+        div[data-testid="stExpander"] {
+            border: 1px solid var(--gj-line) !important;
+            border-radius: 18px !important;
+            background: rgba(255, 255, 255, 0.96) !important;
+            box-shadow: 0 12px 32px rgba(7, 93, 146, 0.07);
+        }
+        div[data-testid="stExpander"] details,
+        div[data-testid="stExpander"] summary,
+        div[data-testid="stExpander"] div {
+            background: transparent !important;
+        }
+        div[data-testid="stExpander"] * {
+            color: var(--gj-ink) !important;
+        }
+        div[data-testid="stExpander"] summary p {
+            color: var(--gj-ink) !important;
+            font-weight: 820;
+        }
+        div[data-baseweb="select"] > div, input, textarea {
+            border-radius: 12px !important;
+            border-color: var(--gj-line) !important;
+            background: var(--gj-white) !important;
+            color: var(--gj-ink) !important;
+        }
+        div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] {
+            background: var(--gj-white) !important;
+            color: var(--gj-ink) !important;
+            border: 1px solid var(--gj-line) !important;
+            border-radius: 14px !important;
+        }
+        div[data-baseweb="popover"] *, div[data-baseweb="menu"] *, ul[role="listbox"] * {
+            background: var(--gj-white) !important;
+            color: var(--gj-ink) !important;
+        }
+        .gj-hero, .gj-panel, .gj-empty {
+            border: 1px solid var(--gj-line);
+            background: rgba(255, 255, 255, 0.94);
+            box-shadow: 0 16px 42px rgba(7, 93, 146, 0.08);
+        }
         .gj-hero {
-            border: 1px solid rgba(131, 148, 190, 0.26);
-            border-radius: 28px;
-            padding: 1.5rem;
-            background:
-                linear-gradient(135deg, rgba(66,133,244,0.18), rgba(237,28,36,0.11)),
-                rgba(10, 14, 27, 0.88);
-            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+            border-radius: 24px;
+            padding: 1rem 1.1rem;
+            margin-bottom: 0.85rem;
+            text-align: center;
+        }
+        .gj-panel {
+            border-radius: 22px;
+            padding: 1rem;
+            margin-bottom: 0.85rem;
+        }
+        .gj-run-title {
+            text-align: center;
+            margin-bottom: 0.75rem;
+        }
+        .gj-live-head {
+            border-radius: 18px;
+            padding: 1rem;
+            margin-bottom: 0.85rem;
+            background: linear-gradient(135deg, var(--gj-blue-soft), #ffffff);
+            color: var(--gj-ink);
+            text-align: center;
+        }
+        .gj-live-head .gj-kicker { color: var(--gj-blue-dark); }
+        .gj-live-head strong {
+            display: block;
+            color: var(--gj-ink);
+            font-size: 1.25rem;
+            letter-spacing: -0.02em;
+            margin-top: 0.15rem;
+        }
+        .gj-live-head span { color: var(--gj-muted); font-size: 0.92rem; }
+        .gj-result-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.75rem;
+            align-items: flex-start;
+            margin-bottom: 0.8rem;
+        }
+        .gj-result-head h2 { margin: 0; }
+        .gj-result-head span { color: var(--gj-muted); font-size: 0.9rem; }
+        .gj-read-card {
+            border: 1px solid var(--gj-line);
+            border-radius: 16px;
+            background: var(--gj-white);
+            padding: 0.85rem 0.95rem;
+            margin: 0.7rem 0;
+            box-shadow: 0 8px 22px rgba(7, 93, 146, 0.05);
+        }
+        .gj-read-card strong { color: var(--gj-ink); }
+        .gj-read-card p {
+            color: var(--gj-ink);
+            white-space: pre-wrap;
+            margin: 0.45rem 0 0;
+            line-height: 1.45;
+        }
+        .gj-read-body {
+            color: var(--gj-ink);
+            margin: 0.45rem 0 0;
+            line-height: 1.45;
+        }
+        .gj-result-empty {
+            min-height: 360px;
+            display: grid;
+            place-items: center;
+            text-align: center;
+        }
+        .gj-result-empty strong { display: block; margin-bottom: 0.35rem; }
+        .gj-empty {
+            border-radius: 18px;
+            padding: 0.85rem 1rem;
+            color: var(--gj-muted);
         }
         .gj-kicker {
-            color: var(--gj-muted);
-            font-size: 0.76rem;
-            letter-spacing: 0.16em;
+            color: var(--gj-blue-dark);
+            font-size: 0.72rem;
+            font-weight: 900;
+            letter-spacing: 0.14em;
             text-transform: uppercase;
-            font-weight: 700;
         }
         .gj-title {
-            font-size: clamp(2.5rem, 7vw, 5.6rem);
-            line-height: 0.9;
-            margin: 0.25rem 0 0.65rem;
-            font-weight: 900;
+            color: var(--gj-ink);
+            font-size: clamp(2.35rem, 6vw, 4.5rem);
+            font-weight: 950;
+            line-height: 0.92;
+            margin: 0.08rem 0 0.32rem;
         }
         .gj-lede {
-            color: #c8d3ef;
-            font-size: 1.08rem;
-            max-width: 760px;
+            color: var(--gj-muted);
+            font-size: 1.02rem;
+            line-height: 1.42;
+            max-width: 720px;
+            margin: 0 auto 0.35rem;
         }
         .gj-pill {
             display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-            border: 1px solid var(--gj-border);
+            border: 1px solid var(--gj-line);
             border-radius: 999px;
-            padding: 0.32rem 0.68rem;
-            margin: 0.2rem 0.25rem 0.2rem 0;
-            color: #dfe7fb;
-            background: rgba(255,255,255,0.04);
+            padding: 0.28rem 0.6rem;
+            margin: 0.2rem 0.2rem 0.1rem 0;
+            background: var(--gj-blue-soft);
+            color: var(--gj-ink);
             font-size: 0.82rem;
+            font-weight: 780;
         }
-        .gj-pipeline {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 0.7rem;
-            margin-top: 1rem;
-        }
-        .gj-node {
-            min-height: 118px;
-            border: 1px solid var(--gj-border);
-            border-radius: 18px;
-            padding: 0.9rem;
-            background: rgba(255,255,255,0.035);
-        }
-        .gj-node strong { display: block; margin-bottom: 0.35rem; }
-        .gj-node span { color: var(--gj-muted); font-size: 0.88rem; }
-        .gj-danger { color: var(--gj-red); }
-        .gj-blue { color: var(--gj-blue); }
-        .gj-green { color: var(--gj-green); }
-        .gj-muted { color: var(--gj-muted); }
-        .gj-dossier {
-            border: 1px solid rgba(237, 28, 36, 0.38);
-            border-radius: 24px;
-            padding: 1rem 1.15rem;
-            background: linear-gradient(145deg, rgba(237,28,36,0.12), rgba(14,18,32,0.95));
-            margin-bottom: 1rem;
-        }
-        .gj-evidence {
-            border-left: 3px solid var(--gj-red);
+        .gj-case {
+            border-left: 4px solid var(--gj-blue);
+            border-radius: 0 14px 14px 0;
+            background: #f5fbff;
             padding: 0.75rem 0.9rem;
-            background: rgba(237, 28, 36, 0.08);
-            color: #ffd7d9;
-            border-radius: 0 12px 12px 0;
+            margin: 0.7rem 0;
         }
-        @media (max-width: 900px) {
-            .gj-pipeline { grid-template-columns: 1fr; }
-            .block-container { padding-left: 1rem; padding-right: 1rem; }
+        .gj-muted { color: var(--gj-muted); }
+        @media (max-width: 760px) {
+            .block-container { padding-left: 0.75rem; padding-right: 0.75rem; }
+            .gj-title { font-size: 2.6rem; }
         }
         </style>
         """,
@@ -188,14 +308,6 @@ def _short(model_id: str) -> str:
 
 def _pct(value: float) -> str:
     return f"{value:.0%}"
-
-
-def _risk_color(asr: float) -> str:
-    if asr >= 0.30:
-        return AMD_RED
-    if asr >= 0.10:
-        return AMBER
-    return SAFE_GREEN
 
 
 def _load_secrets_into_env() -> None:
@@ -229,6 +341,23 @@ def _load_leaderboard() -> LeaderboardResult | None:
         return None
 
 
+@st.cache_data(show_spinner=False)
+def _load_amd_proof_result() -> EvalResult | None:
+    try:
+        return EvalResult.model_validate_json(
+            AMD_PROOF_RESULT_PATH.read_text(encoding="utf-8")
+        )
+    except Exception:  # noqa: B110 - missing/invalid proof hides only this summary
+        return None
+
+
+def _first_existing_path(paths: tuple[Path, ...]) -> Path | None:
+    for path in paths:
+        if path.exists():
+            return path
+    return None
+
+
 def _run_eval_sync(config: EvalConfig, *, offline: bool, settings: Any | None) -> EvalResult:
     if offline:
         coro = run_eval(
@@ -242,13 +371,18 @@ def _run_eval_sync(config: EvalConfig, *, offline: bool, settings: Any | None) -
 
 
 def _default_config(settings: Any | None, offline: bool) -> EvalConfig:
-    endpoint = "offline://simulated" if offline or settings is None else settings.target.base_url
-    model = "weak-model-sim" if offline or settings is None else settings.target.model_id
+    if offline or settings is None:
+        return EvalConfig(
+            failure_mode=FailureMode.HALLUCINATION,
+            n_cases=10,
+            target_endpoint="offline://simulated",
+            target_model_id="weak-model-sim",
+        )
     return EvalConfig(
         failure_mode=FailureMode.HALLUCINATION,
-        n_cases=10,
-        target_endpoint=endpoint,
-        target_model_id=model,
+        n_cases=8,
+        target_endpoint=settings.target.base_url,
+        target_model_id=settings.target.model_id,
     )
 
 
@@ -266,207 +400,35 @@ def _leaderboard_rows(board: LeaderboardResult) -> list[dict[str, Any]]:
     ]
 
 
-def _render_header(board: LeaderboardResult | None) -> None:
-    tokens = board.cost.total.total_tokens if board and board.cost else 0
-    top_asr = (
-        max((target.attack_success_rate for target in board.targets), default=0.0)
-        if board
-        else 0.0
-    )
-    safest = (
-        min(board.ranked, key=lambda target: target.attack_success_rate).target_model_id
-        if board and board.ranked
-        else "pending"
-    )
-    st.markdown(
-        f"""
-        <section class="gj-hero">
-          <div class="gj-kicker">Mission Control · AMD Developer Hackathon ACT II</div>
-          <div class="gj-title">GemmaJudge</div>
-          <p class="gj-lede">Adversarial LLM evaluation powered by Gemma on AMD.
-          Gemma attacks. The target answers. Gemma judges.</p>
-          <span class="gj-pill">Real Gemma run: {_escape(_pct(top_asr))} top ASR</span>
-          <span class="gj-pill">Safest target: {_escape(_short(safest))}</span>
-          <span class="gj-pill">Measured tokens: {tokens:,}</span>
-        </section>
-        """,
-        unsafe_allow_html=True,
-    )
-    st.markdown("### Mission Control")
-
-
-def _render_pipeline() -> None:
-    st.markdown(
-        """
-        <div class="gj-pipeline">
-          <div class="gj-node">
-            <strong class="gj-blue">Gemma Attacker</strong>
-            <span>Generates targeted adversarial prompts.</span>
-          </div>
-          <div class="gj-node">
-            <strong>Target Model</strong>
-            <span>System under test answers each prompt.</span>
-          </div>
-          <div class="gj-node">
-            <strong class="gj-blue">Gemma Judge</strong>
-            <span>Scores 1-5 with reasoning and evidence.</span>
-          </div>
-          <div class="gj-node">
-            <strong class="gj-danger">Risk Report</strong>
-            <span>ASR, drill-down, cost, latency, AMD backend.</span>
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def _render_leaderboard_snapshot(board: LeaderboardResult | None) -> None:
-    st.markdown("### Real Gemma run")
-    if board is None:
-        st.info(
-            "No committed leaderboard artifact found. Generate it with "
-            "`python -m gemmajudge.leaderboard_demo --n 8 --out docs/real_runs/leaderboard.json`."
-        )
-        return
-
-    tokens = board.cost.total.total_tokens if board.cost else 0
-    st.success(
-        f"Real Gemma run · engine `{_short(board.engine_model_id)}` · "
-        f"{len(board.targets)} targets · {len(board.attacks)} shared attacks · "
-        f"{tokens:,} measured tokens · safest `{_short(board.ranked[-1].target_model_id)}`"
-    )
-    st.dataframe(
-        pd.DataFrame(_leaderboard_rows(board)).set_index("rank"),
-        use_container_width=True,
-        height=220,
-    )
-
-
-def _render_live_console(
-    settings: Any | None,
-    config_error: str | None,
-    *,
-    key_prefix: str,
-) -> tuple[EvalConfig, bool]:
-    offline_default = settings is None
-    offline = st.toggle(
-        "Simulated demo (no keys)",
-        value=offline_default,
-        help="Runs the zero-key offline backend. It is illustrative only, not AMD proof.",
-        key=f"{key_prefix}_offline",
-    )
-
-    default = _default_config(settings, offline)
-    if not offline and config_error:
-        st.error("Real backend is not configured. Missing setup:\n\n" + config_error)
-
-    col_a, col_b = st.columns([1, 1])
-    with col_a:
-        endpoint = st.text_input(
-            "Target endpoint",
-            value=default.target_endpoint,
-            disabled=offline,
-            key=f"{key_prefix}_endpoint",
-        )
-    with col_b:
-        model = st.text_input(
-            "Target model id",
-            value=default.target_model_id,
-            disabled=offline,
-            key=f"{key_prefix}_model",
-        )
-
-    col_c, col_d = st.columns([1, 1])
-    with col_c:
-        mode = st.selectbox(
-            "Failure mode",
-            [failure_mode.value for failure_mode in FailureMode],
-            index=0,
-            key=f"{key_prefix}_failure_mode",
-        )
-    with col_d:
-        n_cases = st.slider(
-            "Number of test cases",
-            1,
-            50,
-            default.n_cases,
-            key=f"{key_prefix}_n_cases",
-        )
-
-    config = EvalConfig(
-        failure_mode=FailureMode(mode),
-        n_cases=n_cases,
-        target_endpoint=endpoint or default.target_endpoint,
-        target_model_id=model or default.target_model_id,
-    )
-
-    if offline:
-        st.warning(
-            "SIMULATED RUN MODE - illustrative only. Not a real Gemma/AMD evaluation."
-        )
-    elif settings is not None:
-        st.success(
-            f"Real backend ready · engine `{_short(settings.model_id)}` · "
-            f"backend `{settings.backend.value}`"
-        )
-
-    if st.button(
-        "Run evaluation",
-        type="primary",
-        use_container_width=True,
-        key=f"{key_prefix}_run",
-    ):
-        if not offline and settings is None:
-            st.error("Cannot run: real backend is not configured. Turn on simulated demo mode.")
-        else:
-            with st.spinner("Gemma is attacking, the target is answering, Gemma is judging..."):
-                try:
-                    result = _run_eval_sync(config, offline=offline, settings=settings)
-                except Exception as exc:  # noqa: BLE001 - UI must surface any engine failure
-                    st.session_state["last_error"] = str(exc)
-                else:
-                    st.session_state["result"] = result
-                    st.session_state["result_offline"] = offline
-                    st.session_state.pop("last_error", None)
-
-    if "last_error" in st.session_state:
-        st.error("Run failed without exposing secrets: " + st.session_state["last_error"])
-
-    return config, offline
-
-
 def _score_distribution_fig(result: EvalResult) -> go.Figure:
     counts = {score: 0 for score in range(1, 6)}
     for verdict in result.verdicts:
         counts[verdict.score] += 1
-    colors = [SAFE_GREEN, SAFE_GREEN, AMBER, AMD_RED, AMD_RED]
     fig = go.Figure(
         data=[
             go.Bar(
                 x=list(counts.keys()),
                 y=list(counts.values()),
-                marker_color=colors,
+                marker_color=[BLUE_SOFT, "#CDEFFF", "#96DAFF", "#5BC1FF", BLUE_DARK],
                 text=list(counts.values()),
                 textposition="outside",
             )
         ]
     )
     fig.update_layout(
-        height=260,
-        margin=dict(l=10, r=10, t=30, b=10),
+        height=230,
+        margin=dict(l=10, r=10, t=20, b=10),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         font=dict(color=INK),
-        xaxis=dict(title="Judge score", dtick=1, gridcolor="rgba(255,255,255,0.08)"),
-        yaxis=dict(title="Cases", gridcolor="rgba(255,255,255,0.08)", rangemode="tozero"),
+        xaxis=dict(title="Judge score", dtick=1, gridcolor=LINE),
+        yaxis=dict(title="Cases", gridcolor=LINE, rangemode="tozero"),
         showlegend=False,
     )
     return fig
 
 
 def _token_usage_fig(cost: CostReport | None) -> go.Figure:
-    labels = ["Attacker", "Target", "Judge"]
     values = [0, 0, 0]
     if cost:
         values = [
@@ -474,189 +436,342 @@ def _token_usage_fig(cost: CostReport | None) -> go.Figure:
             cost.target.total_tokens,
             cost.judge.total_tokens,
         ]
-    fig = go.Figure(data=[go.Bar(x=labels, y=values, marker_color=[GEMMA_BLUE, MUTED, AMD_RED])])
+    fig = go.Figure(
+        data=[go.Bar(x=["Attacker", "Target", "Judge"], y=values, marker_color=BLUE)]
+    )
     fig.update_layout(
-        height=230,
-        margin=dict(l=10, r=10, t=25, b=10),
+        height=210,
+        margin=dict(l=10, r=10, t=20, b=10),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         font=dict(color=INK),
-        yaxis=dict(title="Tokens", gridcolor="rgba(255,255,255,0.08)", rangemode="tozero"),
+        yaxis=dict(title="Tokens", gridcolor=LINE, rangemode="tozero"),
         showlegend=False,
     )
     return fig
 
 
-def _verdict_label(score: int) -> str:
-    if score >= 4:
-        return "CONFIDENT FALSE"
-    if score == 3:
-        return "BORDERLINE"
-    return "PASSED"
-
-
-def _render_risk_report(result: EvalResult, *, offline: bool, key_prefix: str) -> None:
-    st.markdown("## Risk Report")
-    if offline:
-        st.warning(
-            "SIMULATED RUN - illustrative only. Not a real Gemma/AMD evaluation."
-        )
-
-    asr = result.attack_success_rate
-    failed = sum(1 for verdict in result.verdicts if verdict.score >= 4)
+def _result_label(entry: dict[str, Any]) -> str:
+    result: EvalResult = entry["result"]
     metrics = result.metrics
-    cost = result.cost
-
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Attack Success Rate", _pct(asr), help="Cases the target failed: judge score >= 4")
-    col2.metric("Failed cases", f"{failed}/{len(result.verdicts)}")
-    col3.metric("Wall clock", f"{metrics.wall_clock_seconds:.2f}s" if metrics else "n/a")
-    col4.metric("Throughput", f"{metrics.throughput_evals_per_sec:.2f}/s" if metrics else "n/a")
-
-    backend_label = "simulated"
-    if metrics and metrics.inference_backend:
-        backend_label = metrics.inference_backend
-    elif not offline:
-        backend_label = "n/a"
-    col5, col6, col7, col8 = st.columns(4)
-    col5.metric("Backend", backend_label)
-    col6.metric("Engine model", _short(metrics.model_id) if metrics and metrics.model_id else "n/a")
-    col7.metric("Measured tokens", f"{cost.total.total_tokens:,}" if cost else "0")
-    col8.metric("Cost", f"${cost.usd:.4f}" if cost else "$0.0000")
-
-    if cost and cost.price_source:
-        st.caption(
-            f"Cost is computed from measured engine tokens. Price source: {cost.price_source}"
-        )
-    elif cost:
-        st.caption(
-            "Cost is computed from measured tokens. Configure PRICE_* env vars to show "
-            "a non-zero dollar value."
-        )
-
-    chart_left, chart_right = st.columns([1, 1])
-    with chart_left:
-        st.markdown("### Score Distribution")
-        st.caption("1 = safe / correct / hedged · 5 = confident and false")
-        st.plotly_chart(
-            _score_distribution_fig(result),
-            use_container_width=True,
-            key=f"{key_prefix}_score_distribution",
-        )
-    with chart_right:
-        st.markdown("### Token Usage")
-        st.caption("Measured usage split by role")
-        st.plotly_chart(
-            _token_usage_fig(cost),
-            use_container_width=True,
-            key=f"{key_prefix}_token_usage",
-        )
-
-    _render_worst_case_dossier(result)
-    _render_case_expanders(result)
+    failed = sum(1 for verdict in result.verdicts if verdict.score >= 4)
+    source = entry.get("source")
+    if source == SOURCE_AMD_PROOF:
+        backend = "VERIFIED AMD"
+    elif entry.get("offline"):
+        backend = "SIMULATED"
+    else:
+        backend = metrics.inference_backend if metrics else "REAL"
+    return (
+        f"{entry['created_at']} · {backend} · ASR {_pct(result.attack_success_rate)} · "
+        f"{failed}/{len(result.verdicts)} failed · {_short(result.config.target_model_id)}"
+    )
 
 
-def _render_worst_case_dossier(result: EvalResult) -> None:
-    st.markdown("## Worst-Case Dossier")
-    if not result.cases:
-        st.info("No joined attack/verdict cases available for a dossier.")
+def _push_result(
+    result: EvalResult,
+    *,
+    offline: bool,
+    source: str,
+    created_at: str | None = None,
+) -> None:
+    history = list(st.session_state.get("result_history", []))
+    history.insert(
+        0,
+        {
+            "created_at": created_at or datetime.now().strftime("%H:%M:%S"),
+            "offline": offline,
+            "source": source,
+            "result": result,
+        },
+    )
+    st.session_state["result_history"] = history[:HISTORY_LIMIT]
+
+
+def _seed_verified_amd_result(proof: EvalResult | None) -> None:
+    if proof is None or st.session_state.get("verified_amd_seeded"):
         return
+    if not st.session_state.get("result_history"):
+        _push_result(
+            proof,
+            offline=False,
+            source=SOURCE_AMD_PROOF,
+            created_at="recorded AMD proof",
+        )
+    st.session_state["verified_amd_seeded"] = True
 
-    case = max(result.cases, key=lambda item: item.verdict.score)
-    verdict = case.verdict
-    verdict_label = _escape(_verdict_label(verdict.score))
+
+def _render_read_card(title: str, body: str, eyebrow: str | None = None) -> None:
+    label = f'<div class="gj-kicker">{_escape(eyebrow)}</div>' if eyebrow else ""
+    body_html = _escape(body).replace("\n", "<br />")
     st.markdown(
         f"""
-        <div class="gj-dossier">
-          <div class="gj-kicker">
-            CASE {_escape(case.attack.id)} · SCORE {verdict.score}/5 · {verdict_label}
-          </div>
-          <h3>Gemma found the target's most brittle answer</h3>
-          <p class="gj-muted">Targeted weakness: {_escape(case.attack.targeted_weakness)}</p>
+        <div class="gj-read-card">
+          {label}
+          <strong>{_escape(title)}</strong>
+          <div class="gj-read-body">{body_html}</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
-    st.markdown("**Gemma attack**")
-    st.write(case.attack.prompt)
-    st.markdown("**Target response**")
-    st.write(verdict.target_response)
-    st.markdown("**Gemma judge**")
-    st.write(verdict.reasoning)
-    if verdict.evidence_span:
+
+
+def _render_header(settings: Any | None) -> None:
+    backend = settings.backend.value if settings else "simulated fallback"
+    model = _short(settings.model_id) if settings else "configure env for live run"
+    st.markdown(
+        f"""
+        <section class="gj-hero">
+          <div class="gj-kicker">Mission Control · AMD Developer Hackathon ACT II · Track 3</div>
+          <div class="gj-title">GemmaJudge</div>
+          <p class="gj-lede"><strong>Gemma attacks. The target answers. Gemma judges.</strong>
+          Run a hallucination eval, then open the evidence behind the score.</p>
+          <span class="gj-pill">Backend: {_escape(backend)}</span>
+          <span class="gj-pill">Engine: {_escape(model)}</span>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_run_form(settings: Any | None, config_error: str | None) -> None:
+    with st.container(border=True):
         st.markdown(
-            f'<div class="gj-evidence"><strong>Evidence span:</strong> '
-            f"{_escape(verdict.evidence_span)}</div>",
+            """
+            <div class="gj-live-head">
+              <div class="gj-kicker">Live Evaluation</div>
+              <strong>Run the evaluator</strong>
+              <span>Choose mode, cases, then launch the attacker -> target -> judge loop.</span>
+            </div>
+            """,
             unsafe_allow_html=True,
         )
-    if result.consistency:
-        bits = [
-            f"{item.test_id}: [{', '.join(str(score) for score in item.scores)}] "
-            f"stdev {item.stdev:.2f}"
-            for item in result.consistency
-        ]
-        st.caption("Judge self-consistency · " + " · ".join(bits))
+        offline_default = settings is None
+        offline = st.toggle(
+            "Simulated demo (no keys)",
+            value=offline_default,
+            help=(
+                "Illustrative fallback only. Real AMD evidence requires Fireworks "
+                "or MI300X config."
+            ),
+            key="run_offline",
+        )
+        default = _default_config(settings, offline)
+
+        col_left, col_right = st.columns([1, 1])
+        with col_left:
+            failure_mode = st.selectbox(
+                "Failure mode",
+                [mode.value for mode in FailureMode],
+                index=[mode.value for mode in FailureMode].index(default.failure_mode.value),
+                key="run_failure_mode",
+            )
+        with col_right:
+            n_cases = st.slider(
+                "Test cases",
+                min_value=1,
+                max_value=20,
+                value=min(default.n_cases, 20),
+                help="Small live batches keep the demo under the 30s rule.",
+                key="run_n_cases",
+            )
+
+        with st.expander("Target settings", expanded=False):
+            endpoint = st.text_input(
+                "Target endpoint",
+                value=default.target_endpoint,
+                disabled=offline,
+                key="run_endpoint",
+            )
+            model = st.text_input(
+                "Target model id",
+                value=default.target_model_id,
+                disabled=offline,
+                key="run_model",
+            )
+
+        config = EvalConfig(
+            failure_mode=FailureMode(failure_mode),
+            n_cases=n_cases,
+            target_endpoint=endpoint or default.target_endpoint,
+            target_model_id=model or default.target_model_id,
+        )
+
+        if offline:
+            st.info("SIMULATED RUN - illustrative only. Not a real Gemma/AMD evaluation.")
+        elif config_error:
+            st.error("Real backend is not configured: " + config_error)
+        else:
+            st.info(
+                f"Real backend ready: `{settings.backend.value}` · "
+                f"`{_short(settings.model_id)}`"
+            )
+
+        if st.button("Run evaluation", type="primary", use_container_width=True, key="run_button"):
+            if not offline and settings is None:
+                st.error(
+                    "Cannot run the real backend yet. Turn simulated mode on or configure env."
+                )
+            else:
+                with st.spinner("Running attacker -> target -> judge..."):
+                    try:
+                        result = _run_eval_sync(config, offline=offline, settings=settings)
+                    except Exception as exc:  # noqa: BLE001 - Streamlit must show demo-safe failures
+                        st.error("Run failed without exposing secrets: " + str(exc))
+                    else:
+                        _push_result(
+                            result,
+                            offline=offline,
+                            source=SOURCE_SIMULATED if offline else SOURCE_LIVE,
+                        )
+                        st.info("Result added below.")
 
 
-def _render_case_expanders(result: EvalResult) -> None:
-    st.markdown("### Full Drill-Down")
-    cases = sorted(result.cases, key=lambda item: item.verdict.score, reverse=True)
-    for item in cases:
-        verdict = item.verdict
-        label = _verdict_label(verdict.score)
-        with st.expander(
-            f"{item.attack.id} · score {verdict.score}/5 · {label} · {item.attack.prompt[:82]}"
-        ):
-            st.markdown("**Gemma attack**")
-            st.write(item.attack.prompt)
-            st.caption(f"Rationale: {item.attack.rationale}")
-            st.markdown("**Target response**")
-            st.write(verdict.target_response)
-            st.markdown("**Gemma judge**")
-            st.write(verdict.reasoning)
-            if verdict.evidence_span:
-                st.markdown(f"**Evidence span:** `{verdict.evidence_span}`")
-
-
-def _render_target_drilldown(board: LeaderboardResult, target: TargetReport) -> None:
-    st.markdown(f"### Drill-down: `{_short(target.target_model_id)}`")
-    cases = sorted(board.cases_for(target), key=lambda item: item.verdict.score, reverse=True)
-    for item in cases:
-        verdict = item.verdict
-        label = _verdict_label(verdict.score)
-        with st.expander(
-            f"{item.attack.id} · score {verdict.score}/5 · {label} · {item.attack.prompt[:82]}"
-        ):
-            st.markdown("**Shared Gemma attack**")
-            st.write(item.attack.prompt)
-            st.markdown("**Target response**")
-            st.write(verdict.target_response)
-            st.markdown("**Gemma judge**")
-            st.write(verdict.reasoning)
-            if verdict.evidence_span:
-                st.markdown(f"**Evidence span:** `{verdict.evidence_span}`")
-
-
-def _render_full_leaderboard(board: LeaderboardResult | None) -> None:
-    st.markdown("## Robustness Leaderboard")
-    if board is None:
-        st.info(
-            "No committed real-Gemma leaderboard found. Generate one with "
-            "`python -m gemmajudge.leaderboard_demo --n 8 --out docs/real_runs/leaderboard.json`."
+def _render_results() -> None:
+    history = list(st.session_state.get("result_history", []))
+    if not history:
+        st.markdown(
+            """
+            <div class="gj-empty gj-result-empty">
+              <div>
+                <strong>Results will appear here.</strong>
+                Run an evaluation on the left. The latest report will be readable here from
+                summary to evidence without jumping around the page.
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
         return
 
-    tokens = board.cost.total.total_tokens if board.cost else 0
-    st.success(
-        f"Real Gemma run · `{_short(board.engine_model_id)}` attacker+judge · "
-        f"backend `{board.inference_backend or 'recorded'}` · "
-        f"{len(board.attacks)} shared attacks · "
-        f"{tokens:,} measured tokens"
+    st.markdown(
+        """
+        <div class="gj-result-head">
+          <div>
+            <div class="gj-kicker">Results</div>
+            <h2>Read the report</h2>
+          </div>
+          <span>Newest run is selected by default.</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
+    selected = st.selectbox(
+        "Stored runs",
+        range(len(history)),
+        format_func=lambda idx: _result_label(history[idx]),
+        key="selected_result",
+    )
+    entry = history[selected]
+    _render_risk_report(
+        entry["result"],
+        offline=bool(entry.get("offline")),
+        source=str(entry.get("source") or SOURCE_LIVE),
+    )
+
+    if st.button("Clear results", key="clear_results"):
+        st.session_state.pop("result_history", None)
+        st.rerun()
+
+
+def _render_risk_report(result: EvalResult, *, offline: bool, source: str = SOURCE_LIVE) -> None:
+    st.markdown("### 1. Risk Report Summary")
+    failed = sum(1 for verdict in result.verdicts if verdict.score >= 4)
+    if offline:
+        st.info("SIMULATED RUN - illustrative only. Not a real Gemma/AMD evaluation.")
+    elif source == SOURCE_AMD_PROOF:
+        st.success(
+            "VERIFIED AMD RUN - recorded W7900 ROCm artifact from "
+            "docs/amd_proof/w7900/eval_result.json. "
+            f"ASR {_pct(result.attack_success_rate)} ({failed}/{len(result.verdicts)} failed)."
+        )
+    metrics = result.metrics
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Attack Success Rate", _pct(result.attack_success_rate))
+    col2.metric("Failed cases", f"{failed}/{len(result.verdicts)}")
+    col3.metric("Wall clock", f"{metrics.wall_clock_seconds:.2f}s" if metrics else "n/a")
+
+    _render_worst_case(result)
+    _render_case_browser(result)
+
+
+def _render_worst_case(result: EvalResult) -> None:
+    st.markdown("### 2. Worst-Case Dossier")
+    if not result.cases:
+        st.info("No joined attack/verdict cases are available for this result.")
+        return
+
+    case = max(result.cases, key=lambda item: item.verdict.score)
+    verdict = case.verdict
+    _render_read_card(
+        f"Case {case.attack.id} · score {verdict.score}/5",
+        case.attack.targeted_weakness,
+        "Targeted weakness",
+    )
+    _render_read_card("Gemma attack", case.attack.prompt)
+    _render_read_card("Target response", verdict.target_response)
+    _render_read_card("Gemma judge", verdict.reasoning)
+    if verdict.evidence_span:
+        st.caption("Evidence span: " + verdict.evidence_span)
+    if result.consistency:
+        summary = "; ".join(
+            f"{item.test_id}: {item.scores} stdev {item.stdev:.2f}"
+            for item in result.consistency
+        )
+        st.caption("Judge self-consistency: " + summary)
+
+
+def _render_case_browser(result: EvalResult) -> None:
+    cases = sorted(result.cases, key=lambda item: item.verdict.score, reverse=True)
+    if not cases:
+        return
+    with st.expander("Inspect another case", expanded=False):
+        selected = st.selectbox(
+            "Case",
+            range(len(cases)),
+            format_func=lambda idx: (
+                f"{cases[idx].attack.id} · score {cases[idx].verdict.score}/5 · "
+                f"{cases[idx].attack.prompt[:70]}"
+            ),
+            key=f"case_browser_{id(result)}",
+        )
+        case = cases[selected]
+        verdict = case.verdict
+        _render_read_card("Gemma attack", case.attack.prompt)
+        _render_read_card("Target response", verdict.target_response)
+        _render_read_card("Gemma judge", verdict.reasoning)
+
+
+def _render_leaderboard(board: LeaderboardResult | None) -> None:
+    st.markdown("## Robustness Leaderboard")
+    if board is None:
+        st.info("No committed real-Gemma leaderboard artifact found.")
+        return
+
+    tokens = board.cost.total.total_tokens if board.cost else 0
+    safest = _short(board.ranked[-1].target_model_id) if board.ranked else "n/a"
+    top_asr = max((target.attack_success_rate for target in board.targets), default=0.0)
+    st.markdown(
+        f"""
+        <div class="gj-read-card">
+          <div class="gj-kicker">Real Gemma run</div>
+          <strong>{_escape(_short(board.engine_model_id))} attacker + judge</strong>
+          <p>Backend: {_escape(board.inference_backend or 'recorded')} ·
+          safest target: {_escape(safest)} · {len(board.attacks)} shared attacks ·
+          {tokens:,} measured tokens.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Highest ASR", _pct(top_asr))
+    col2.metric("Safest target", safest)
+    col3.metric("Targets", str(len(board.targets)))
     st.dataframe(
         pd.DataFrame(_leaderboard_rows(board)).set_index("rank"),
         use_container_width=True,
-        height=260,
+        height=240,
     )
 
     ranked = board.ranked
@@ -665,57 +780,117 @@ def _render_full_leaderboard(board: LeaderboardResult | None) -> None:
             go.Bar(
                 x=[_short(target.target_model_id) for target in ranked],
                 y=[round(target.attack_success_rate * 100) for target in ranked],
-                marker_color=[_risk_color(target.attack_success_rate) for target in ranked],
+                marker_color=BLUE_DARK,
                 text=[_pct(target.attack_success_rate) for target in ranked],
                 textposition="outside",
+                textfont=dict(color=INK, size=14),
             )
         ]
     )
     fig.update_layout(
-        height=300,
-        margin=dict(l=10, r=10, t=30, b=10),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
+        title=dict(text="Attack Success Rate by target", font=dict(color=INK, size=18)),
+        height=320,
+        margin=dict(l=10, r=10, t=52, b=10),
+        paper_bgcolor=WHITE,
+        plot_bgcolor=WHITE,
         font=dict(color=INK),
-        yaxis=dict(title="ASR (%)", gridcolor="rgba(255,255,255,0.08)", rangemode="tozero"),
+        xaxis=dict(tickfont=dict(color=INK), gridcolor=LINE),
+        yaxis=dict(
+            title=dict(text="ASR (%)", font=dict(color=INK)),
+            tickfont=dict(color=INK),
+            gridcolor=LINE,
+            range=[0, max(35, round(top_asr * 100) + 10)],
+        ),
         showlegend=False,
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    labels = [
-        f"{_short(target.target_model_id)} · ASR {_pct(target.attack_success_rate)}"
-        for target in ranked
-    ]
     selected = st.selectbox(
         "Inspect target",
         range(len(ranked)),
-        format_func=lambda idx: labels[idx],
+        format_func=lambda idx: (
+            f"{_short(ranked[idx].target_model_id)} · "
+            f"{_pct(ranked[idx].attack_success_rate)} ASR"
+        ),
         key="leaderboard_target",
     )
     _render_target_drilldown(board, ranked[selected])
 
 
+def _render_target_drilldown(board: LeaderboardResult, target: TargetReport) -> None:
+    st.markdown(f"### Target drill-down: `{_short(target.target_model_id)}`")
+    cases = sorted(board.cases_for(target), key=lambda item: item.verdict.score, reverse=True)
+    for item in cases[:8]:
+        verdict = item.verdict
+        with st.expander(f"{item.attack.id} · score {verdict.score}/5 · {item.attack.prompt[:80]}"):
+            st.markdown("**Shared Gemma attack**")
+            st.write(item.attack.prompt)
+            st.markdown("**Target response**")
+            st.write(verdict.target_response)
+            st.markdown("**Gemma judge**")
+            st.write(verdict.reasoning)
+            if verdict.evidence_span:
+                st.caption("Evidence span: " + verdict.evidence_span)
+
+
 def _render_amd_proof(settings: Any | None, config_error: str | None) -> None:
+    proof = _load_amd_proof_result()
+    screenshot = _first_existing_path(AMD_PROOF_SCREENSHOTS)
     st.markdown("## AMD Proof")
     st.markdown(
-        "GemmaJudge uses one OpenAI-compatible client path for Fireworks and for "
-        "self-hosted Gemma on AMD Instinct MI300X via vLLM + ROCm. The simulated "
-        "mode is never counted as proof."
+        "Real proof screenshot first. The executed proof is AMD Radeon PRO W7900 via "
+        "vLLM + ROCm; MI300X is included as the AMD Instinct reference runbook."
     )
 
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Backend", settings.backend.value if settings else "not configured")
-    col2.metric("Engine model", _short(settings.model_id) if settings else "not configured")
-    col3.metric("Request timeout", f"{settings.request_timeout_s:.0f}s" if settings else "<= 30s")
-    col4.metric("Max concurrency", str(settings.max_concurrency) if settings else "8 default")
+    if screenshot:
+        st.image(
+            str(screenshot),
+            caption="Real AMD proof screenshot: ROCm/vLLM GemmaJudge run on AMD hardware.",
+            use_container_width=True,
+        )
+    else:
+        st.info("No proof screenshot image found. Expected w7900_proof.png or w7900/proof.png.")
+
+    st.markdown("### Verified AMD run")
+    if proof and proof.metrics:
+        failed = sum(1 for verdict in proof.verdicts if verdict.score >= 4)
+        proof_rows = [
+            {"item": "Hardware", "value": "AMD Radeon PRO W7900 / gfx1100"},
+            {"item": "Stack", "value": "ROCm 7.2 + vLLM"},
+            {"item": "Attacker + Judge", "value": _short(proof.metrics.model_id)},
+            {"item": "Target", "value": _short(proof.metrics.target_model_id)},
+            {"item": "ASR", "value": _pct(proof.attack_success_rate)},
+            {"item": "Failed cases", "value": f"{failed}/{len(proof.verdicts)}"},
+            {"item": "Throughput", "value": "136.9 tok/s"},
+        ]
+        st.dataframe(pd.DataFrame(proof_rows), use_container_width=True, hide_index=True)
+    else:
+        st.info("AMD proof result could not be loaded from docs/amd_proof/w7900/eval_result.json.")
 
     if config_error:
-        st.info("Real backend setup is pending: " + config_error)
+        st.info("Live backend setup pending: " + config_error)
 
-    st.markdown("### Proof artifact checklist")
+    with st.expander("Live backend config", expanded=False):
+        live_rows = [
+            {
+                "item": "Live URL backend",
+                "value": settings.backend.value if settings else "not configured",
+            },
+            {
+                "item": "Live engine",
+                "value": _short(settings.model_id) if settings else "not configured",
+            },
+            {
+                "item": "Request guardrail",
+                "value": f"{settings.request_timeout_s:.0f}s" if settings else "<= 30s",
+            },
+        ]
+        st.dataframe(pd.DataFrame(live_rows), use_container_width=True, hide_index=True)
+
+    st.markdown("### Artifact checklist")
     rows = []
     for name in AMD_PROOF_FILES:
-        path = AMD_PROOF_DIR / name
+        path = AMD_PROOF_RUN_DIR / name
         rows.append(
             {
                 "artifact": name,
@@ -724,20 +899,12 @@ def _render_amd_proof(settings: Any | None, config_error: str | None) -> None:
             }
         )
     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
     st.caption(
-        "Pending files are shown honestly. The live demo can still run in simulated mode, "
-        "but only real Fireworks/MI300X runs should be presented as Gemma/AMD evidence."
+        "MI300X reference files: docs/amd_proof/mi300x_gemma.ipynb and "
+        "docs/amd_proof/serve_gemma_mi300x.sh. They are runbooks; the committed proof "
+        "above is the executed W7900 ROCm run."
     )
-
-
-def _render_stored_result(*, key_prefix: str) -> None:
-    result = st.session_state.get("result")
-    if result is not None:
-        _render_risk_report(
-            result,
-            offline=bool(st.session_state.get("result_offline", False)),
-            key_prefix=key_prefix,
-        )
 
 
 def main() -> None:
@@ -745,31 +912,26 @@ def main() -> None:
     _install_theme()
     settings, config_error = _probe_settings()
     board = _load_leaderboard()
+    _seed_verified_amd_result(_load_amd_proof_result())
 
-    tab_mission, tab_live, tab_board, tab_amd = st.tabs(
-        ["Mission Control", "Live Evaluation", "Robustness Leaderboard", "AMD Proof"]
+    page = st.radio(
+        "Navigation",
+        ["Mission Control", "Leaderboard", "AMD Proof"],
+        horizontal=True,
+        label_visibility="collapsed",
+        key="page_nav",
     )
 
-    with tab_mission:
-        _render_header(board)
-        _render_pipeline()
-        left, right = st.columns([1.1, 0.9], gap="large")
-        with left:
-            _render_leaderboard_snapshot(board)
-        with right:
-            st.markdown("### Live Evaluation")
-            _render_live_console(settings, config_error, key_prefix="mission")
-        _render_stored_result(key_prefix="mission_result")
-
-    with tab_live:
-        st.markdown("## Live Evaluation")
-        _render_live_console(settings, config_error, key_prefix="live")
-        _render_stored_result(key_prefix="live_result")
-
-    with tab_board:
-        _render_full_leaderboard(board)
-
-    with tab_amd:
+    if page == "Mission Control":
+        _render_header(settings)
+        live_col, result_col = st.columns([0.42, 0.58], gap="large")
+        with live_col:
+            _render_run_form(settings, config_error)
+        with result_col:
+            _render_results()
+    elif page == "Leaderboard":
+        _render_leaderboard(board)
+    else:
         _render_amd_proof(settings, config_error)
 
 

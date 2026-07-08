@@ -54,7 +54,7 @@ The committed set lives in [`w7900/`](w7900/) (real AMD Radeon PRO W7900 run):
 - [x] `serve_command.txt` — the exact vLLM launch command(s) used.
 - [x] `eval_result.json` — a real GemmaJudge run against the AMD endpoint.
 - [x] `notes.md` — model id, VRAM footprint, measured throughput.
-- [ ] `mi300x_screenshot.png` — `rocm-smi` + served endpoint (for the deck; captured, add if desired).
+- [x] `proof.png` — screenshot used by the app's AMD Proof page.
 
 > These files are intentionally committed (the `.gitignore` `runs/` rule does not cover this folder).
 > Do **not** commit any HF token — it goes in the notebook's runtime env only.

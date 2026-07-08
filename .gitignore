@@ -50,3 +50,11 @@ Thumbs.db
 
 # Deck build previews (the committed PDF is the artifact)
 deck/_preview_*.png
+deck/VIDEO_SCRIPT.md
+deck/*.mp3
+deck/*.mp4
+
+# Local browser captures and generated video workspaces.
+.playwright-mcp/
+deck/_archive_not_for_submission/
+deck/gemmajudge-premium-teaser/

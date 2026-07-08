@@ -25,6 +25,10 @@ def test_app_loads_mission_control_without_exception():
     assert "GemmaJudge" in text
     assert "Mission Control" in text
     assert "Gemma attacks" in text
+    metric_values = {metric.label: metric.value for metric in at.metric}
+    assert "VERIFIED AMD RUN" in text
+    assert metric_values["Attack Success Rate"] == "80%"
+    assert metric_values["Failed cases"] == "4/5"
 
 
 def test_simulated_run_renders_risk_report_and_warning():
@@ -43,10 +47,15 @@ def test_simulated_run_renders_risk_report_and_warning():
     assert "Attack Success Rate" in text
     assert "Worst-Case Dossier" in text
     assert len(at.expander) >= 1
+    metric_values = {metric.label: metric.value for metric in at.metric}
+    assert metric_values["Attack Success Rate"] == "80%"
+    assert metric_values["Failed cases"] == "8/10"
 
 
 def test_real_leaderboard_artifact_is_visible():
     at = AppTest.from_file(_APP, default_timeout=60).run()
+    assert not at.exception
+    at.radio[0].set_value("Leaderboard").run()
     assert not at.exception
     text = "\n".join(_texts(at))
     assert "Real Gemma run" in text
@@ -56,6 +65,8 @@ def test_real_leaderboard_artifact_is_visible():
 
 def test_amd_proof_surface_is_present():
     at = AppTest.from_file(_APP, default_timeout=60).run()
+    assert not at.exception
+    at.radio[0].set_value("AMD Proof").run()
     assert not at.exception
     text = "\n".join(_texts(at))
     assert "AMD Proof" in text
