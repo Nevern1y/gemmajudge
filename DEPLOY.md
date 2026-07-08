@@ -62,9 +62,10 @@ push adds new module-level exports; ordinary edits hot-reload fine.
 ## Smoke check before submitting
 
 - Repo public, CI green on `main`.
-- `docker build -t gemmajudge .` succeeds and `docker run -p 8501:8501 gemmajudge` serves the app (not required for Track 3, but it's the fastest way to prove "it just runs").
+- Live URL: <https://gemmajudge.streamlit.app/> loads from an incognito browser.
+- Docker image is **not required for Track 3 Unicorn** per the official participant guide; the included `Dockerfile` is optional reproducibility tooling only.
 - `python -m gemmajudge.demo --n 10` returns a real ASR with your keys.
-- Live URL loads; **🏆 Robustness leaderboard** tab shows the real Gemma run, and a
-  simulated live run completes in an incognito session.
+- **🏆 Robustness leaderboard** tab shows the real Gemma run, and a simulated live run
+  completes in an incognito session.
 - `docs/amd_proof/w7900/` has the AMD (Radeon W7900) `rocm-smi` + vLLM logs + serve command + a real `eval_result.json` committed.
 - `deck/GemmaJudge_deck.pdf` present. English-only outputs. No secrets committed.

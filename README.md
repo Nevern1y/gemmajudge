@@ -13,6 +13,19 @@ Built for the **AMD Developer Hackathon: ACT II — Track 3 (Unicorn)**.
 > Status: engine, offline simulation, robustness leaderboard, and AMD proof-of-compute are
 > done and committed. Built during the hackathon (6–11 Jul 2026).
 
+## Hackathon submission artifacts
+
+Track 3 (Unicorn) requires a GitHub repository, demo video, and slide deck PDF; a live
+hosted URL is optional but recommended. The official participant guide explicitly says
+**no Docker image is required for Track 3**. A `Dockerfile` is included only as a
+reproducibility convenience, not as a submission gate.
+
+- **GitHub repository:** <https://github.com/Nevern1y/gemmajudge>
+- **Live demo URL:** <https://gemmajudge.streamlit.app/>
+- **Slide deck PDF:** [`deck/GemmaJudge_deck.pdf`](deck/GemmaJudge_deck.pdf)
+- **AMD proof-of-compute:** [`docs/amd_proof/w7900/`](docs/amd_proof/w7900/)
+- **Real Gemma leaderboard data:** [`docs/real_runs/`](docs/real_runs/)
+
 ## Why it exists
 
 Every time a team ships or fine-tunes an LLM, they're guessing whether it now hallucinates
@@ -63,8 +76,8 @@ cp .env.example .env        # fill in your keys — never commit .env
 streamlit run app.py
 ```
 
-Or with Docker (a `Dockerfile` is included; Track 3 doesn't require a container, this is
-just the easiest way to run it identically anywhere):
+Or with Docker (optional for Track 3; the `Dockerfile` is only for reproducible local
+runs, not a required Unicorn-track artifact):
 
 ```bash
 docker build -t gemmajudge .
