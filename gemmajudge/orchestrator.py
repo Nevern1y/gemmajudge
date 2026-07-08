@@ -39,6 +39,7 @@ from gemmajudge.schemas import (
     TokenUsage,
 )
 from gemmajudge.target import query_target
+from gemmajudge.utils.cost import build_cost
 
 # F9b defaults: re-judge this many showcase cases, this many times each. Small and
 # fixed so it stays cheap and off the live-latency budget.
@@ -186,7 +187,7 @@ async def run_eval(
             await _safe_close(target_client)
 
     # --- aggregate cost + metrics -------------------------------------------
-    cost = _build_cost(settings, attacker_usage, target_usage, judge_usage)
+    cost = build_cost(settings, attacker_usage, target_usage, judge_usage)
     metrics = RunMetrics(
         wall_clock_seconds=wall_clock,
         n_cases=len(verdicts),
@@ -202,34 +203,6 @@ async def run_eval(
         cost=cost,
         metrics=metrics,
         consistency=consistency,
-    )
-
-
-def _build_cost(
-    settings: Settings | None,
-    attacker: TokenUsage,
-    target: TokenUsage,
-    judge_usage: TokenUsage,
-) -> CostReport:
-    """Turn measured per-role usage into a CostReport with a $ figure.
-
-    The $ figure prices the **engine** (Attacker+Judge) tokens, which is what runs
-    on the AMD-hosted Gemma; the target is a separate system whose price we don't
-    assume. If no pricing is configured, ``usd`` is a truthful ``0.0``."""
-    pricing = settings.pricing if settings else None
-    if pricing is not None:
-        engine_tokens = attacker + judge_usage
-        usd = pricing.cost_usd(engine_tokens.prompt_tokens, engine_tokens.completion_tokens)
-        source = pricing.source
-    else:
-        usd = 0.0
-        source = None
-    return CostReport(
-        attacker=attacker,
-        target=target,
-        judge=judge_usage,
-        usd=usd,
-        price_source=source,
     )
 
 
