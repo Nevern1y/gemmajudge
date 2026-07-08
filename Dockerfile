@@ -1,4 +1,5 @@
-# GemmaJudge - containerized submission for the AMD Developer Hackathon ACT II (Track 3).
+# GemmaJudge - optional container image (AMD Developer Hackathon ACT II, Track 3).
+# Not required for Track 3, but useful for a reproducible one-command run.
 #
 # Builds the Streamlit demo (app.py). The engine talks to Gemma over an
 # OpenAI-compatible endpoint - Fireworks (AMD-hosted) or self-hosted vLLM on AMD +

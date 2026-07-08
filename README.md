@@ -10,7 +10,8 @@ AMD-hosted infrastructure).
 
 Built for the **AMD Developer Hackathon: ACT II — Track 3 (Unicorn)**.
 
-> Status: 🚧 in active development during the hackathon (6–11 Jul 2026).
+> Status: engine, offline simulation, robustness leaderboard, and AMD proof-of-compute are
+> done and committed. Built during the hackathon (6–11 Jul 2026).
 
 ## Why it exists
 
@@ -62,7 +63,8 @@ cp .env.example .env        # fill in your keys — never commit .env
 streamlit run app.py
 ```
 
-Or with Docker (the submission is containerized — AMD ACT II requirement):
+Or with Docker (a `Dockerfile` is included; Track 3 doesn't require a container, this is
+just the easiest way to run it identically anywhere):
 
 ```bash
 docker build -t gemmajudge .

@@ -62,7 +62,7 @@ push adds new module-level exports; ordinary edits hot-reload fine.
 ## Smoke check before submitting
 
 - Repo public, CI green on `main`.
-- `docker build -t gemmajudge .` succeeds and `docker run -p 8501:8501 gemmajudge` serves the app (AMD ACT II requires a containerized submission).
+- `docker build -t gemmajudge .` succeeds and `docker run -p 8501:8501 gemmajudge` serves the app (not required for Track 3, but it's the fastest way to prove "it just runs").
 - `python -m gemmajudge.demo --n 10` returns a real ASR with your keys.
 - Live URL loads; **🏆 Robustness leaderboard** tab shows the real Gemma run, and a
   simulated live run completes in an incognito session.
