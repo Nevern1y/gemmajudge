@@ -98,15 +98,19 @@ async def _compute_consistency(
         response = base.target_response if base else ""
         # First data point is the live verdict we already have; re-judge (repeats-1)×.
         scores: list[int] = [base.score] if base else []
-        for _ in range(max(0, repeats - 1)):
-            try:
-                verdict, u = await judge(
-                    engine_client, case, response, failure_mode=failure_mode
-                )
+
+        tasks = [
+            judge(engine_client, case, response, failure_mode=failure_mode)
+            for _ in range(max(0, repeats - 1))
+        ]
+        if tasks:
+            judge_results = await asyncio.gather(*tasks, return_exceptions=True)
+            for res in judge_results:
+                if isinstance(res, Exception):
+                    continue
+                verdict, u = res
                 scores.append(verdict.score)
                 usage = usage + u
-            except Exception:  # noqa: BLE001 - a dropped re-judge just shrinks the sample
-                continue
         if scores:
             results.append(ConsistencyResult(test_id=case.id, scores=scores))
     return results, usage
@@ -158,9 +162,7 @@ async def run_eval(
         semaphore = asyncio.Semaphore(max_concurrency)
         results = await asyncio.gather(
             *(
-                _run_one_case(
-                    engine_client, target_client, case, config.failure_mode, semaphore
-                )
+                _run_one_case(engine_client, target_client, case, config.failure_mode, semaphore)
                 for case in attacks
             )
         )
