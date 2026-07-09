@@ -143,6 +143,14 @@ output, vLLM serving logs, the launch command, and a real `eval_result.json` (ha
 [`docs/amd_proof/mi300x_gemma.ipynb`](docs/amd_proof/mi300x_gemma.ipynb) notebook are included
 as the AMD Instinct reference path. This satisfies the Track 3 AMD-compute requirement.
 
+## Fine-tuning pipeline
+
+GemmaJudge also includes a fine-tuning-ready judge pipeline: dataset builder, seed JSONL,
+ROCm LoRA training entrypoint, optional Fireworks conversion docs, and a base-vs-tuned
+evaluation harness. Start with [`docs/FINE_TUNING.md`](docs/FINE_TUNING.md). The adapter
+artifacts are intentionally gitignored; only data schemas, scripts, docs, and measured
+reports should be committed.
+
 ## License
 
 [Apache-2.0](LICENSE).

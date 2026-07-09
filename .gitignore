@@ -36,6 +36,7 @@ htmlcov/
 
 # ---- Run artifacts (eval outputs, cached runs, captured proofs) ----
 runs/
+artifacts/
 *.sqlite
 *.db
 cache/
