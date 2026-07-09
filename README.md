@@ -145,11 +145,16 @@ as the AMD Instinct reference path. This satisfies the Track 3 AMD-compute requi
 
 ## Fine-tuning pipeline
 
-GemmaJudge also includes a fine-tuning-ready judge pipeline: dataset builder, seed JSONL,
-ROCm LoRA training entrypoint, optional Fireworks conversion docs, and a base-vs-tuned
-evaluation harness. Start with [`docs/FINE_TUNING.md`](docs/FINE_TUNING.md). The adapter
-artifacts are intentionally gitignored; only data schemas, scripts, docs, and measured
-reports should be committed.
+GemmaJudge also includes a measured ROCm LoRA judge fine-tune proof: dataset builder,
+seed JSONL, training entrypoint, optional Fireworks conversion docs, direct-Transformers
+fallback evaluation, and base-vs-tuned/variant selection. In the recorded 56-example
+validation run, the tuned Gemma-3-4B judge improved JSON validity from **89.3% → 100.0%**,
+pass/fail accuracy from **66.1% → 75.0%**, macro-F1 from **0.578 → 0.622**, and score MAE
+from **1.38 → 1.30**. Two extra LoRA variants were trained and evaluated; the original
+checkpoint remained the champion. See [`docs/fine_tune_eval/report.json`](docs/fine_tune_eval/report.json)
+and [`docs/fine_tune_eval/README.md`](docs/fine_tune_eval/README.md). The adapter and
+merged model artifacts are intentionally gitignored; only data schemas, scripts, docs,
+and measured reports should be committed.
 
 ## License
 
