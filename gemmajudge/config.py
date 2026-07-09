@@ -7,7 +7,7 @@ PRD F9). Call :func:`load_settings` once at startup; it:
 * loads ``.env`` in local dev (via ``python-dotenv``; a real environment's vars
   always win over the file),
 * resolves ``INFERENCE_BACKEND`` into a concrete ``(base_url, api_key, model_id)``
-  for the Attacker+Judge Gemma,
+  for the attacker+judge engine model,
 * resolves the separate system-under-test (target) endpoint,
 * **fails loudly** with one aggregated, secret-free message listing every missing
   required variable — so a misconfigured run dies at startup, not mid-demo.
@@ -33,6 +33,7 @@ except ImportError:  # pragma: no cover - dotenv is a listed dep, this is defens
 
 # Fireworks' documented OpenAI-compatible base URL — used if the env var is unset.
 _DEFAULT_FIREWORKS_BASE_URL = "https://api.fireworks.ai/inference/v1"
+_DEFAULT_FIREWORKS_TARGET_MODEL = "accounts/fireworks/models/gpt-oss-120b"
 # Placeholder key for endpoints that don't authenticate (e.g. a local vLLM server).
 # The OpenAI SDK requires *some* non-empty api_key even when the server ignores it.
 _NO_AUTH_PLACEHOLDER = "EMPTY"
@@ -45,7 +46,7 @@ class ConfigError(RuntimeError):
 
 
 class InferenceBackend(StrEnum):
-    """Where the Attacker + Judge Gemma runs (env ``INFERENCE_BACKEND``)."""
+    """Where the attacker+judge engine model runs (env ``INFERENCE_BACKEND``)."""
 
     FIREWORKS = "fireworks"  # Managed OpenAI-compatible backend for live-demo uptime
     MI300X = "mi300x"  # Self-hosted vLLM backend on AMD GPU; W7900 proof, MI300X ref
@@ -82,7 +83,7 @@ class Settings(BaseModel):
     """Fully-resolved, validated engine configuration."""
 
     backend: InferenceBackend
-    engine: EndpointSettings  # Attacker + Judge Gemma
+    engine: EndpointSettings  # attacker + judge engine model
     target: EndpointSettings  # system-under-test
     pricing: PricingSettings = PricingSettings()
 
@@ -94,7 +95,7 @@ class Settings(BaseModel):
 
     @property
     def model_id(self) -> str:
-        """The Attacker + Judge Gemma model id (for the on-screen AMD label)."""
+        """The attacker+judge engine model id shown in the UI."""
         return self.engine.model_id
 
 
@@ -155,7 +156,7 @@ def load_settings(env: dict[str, str] | None = None) -> Settings:
             f"INFERENCE_BACKEND={backend_raw!r} is not valid. Choose one of: {allowed}."
         ) from exc
 
-    # --- Attacker + Judge Gemma (the engine) ---------------------------------
+    # --- attacker + judge engine model ---------------------------------------
     model_id = _get(env, "MODEL_ID")
     if model_id is None:
         missing.append("MODEL_ID")
@@ -173,12 +174,18 @@ def load_settings(env: dict[str, str] | None = None) -> Settings:
 
     # --- target (system-under-test) ------------------------------------------
     target_endpoint = _get(env, "TARGET_ENDPOINT")
+    if target_endpoint is None and backend is InferenceBackend.FIREWORKS:
+        target_endpoint = base_url
     if target_endpoint is None:
         missing.append("TARGET_ENDPOINT")
     target_model_id = _get(env, "TARGET_MODEL_ID")
+    if target_model_id is None and backend is InferenceBackend.FIREWORKS:
+        target_model_id = _DEFAULT_FIREWORKS_TARGET_MODEL
     if target_model_id is None:
         missing.append("TARGET_MODEL_ID")
-    target_api_key = _get(env, "TARGET_API_KEY") or _NO_AUTH_PLACEHOLDER
+    target_api_key = _get(env, "TARGET_API_KEY") or (
+        api_key if backend is InferenceBackend.FIREWORKS else _NO_AUTH_PLACEHOLDER
+    )
 
     if missing:
         raise ConfigError(

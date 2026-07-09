@@ -1,5 +1,5 @@
-# GemmaJudge - optional container image (AMD Developer Hackathon ACT II, Track 3).
-# Not required for Track 3, but useful for a reproducible one-command run.
+# GemmaJudge - container image (AMD Developer Hackathon ACT II, Track 3).
+# Provides a reproducible one-command run for the submitted app.
 #
 # Builds the Streamlit demo (app.py). The engine talks to Gemma over an
 # OpenAI-compatible endpoint - managed service for uptime or
@@ -9,7 +9,8 @@
 # labelled simulated demo, so the container is always demonstrable.
 #
 #   docker build -t gemmajudge .
-#   docker run --rm -p 8501:8501 --env-file .env gemmajudge
+#   docker run --rm -p 8501:8501 gemmajudge
+#   # optional real backend: add --env-file .env
 #   # then open http://localhost:8501
 #
 FROM python:3.11-slim

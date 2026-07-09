@@ -1,7 +1,8 @@
 """GemmaJudge Streamlit frontend.
 
 Thin UI around the frozen backend seam: ``run_eval(config: EvalConfig) -> EvalResult``.
-The live path uses env/Streamlit secrets; the zero-key fallback is clearly marked simulated.
+The public app is a recorded-run dashboard over committed real artifacts; live backends
+remain env-configured for private/local demos.
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ from gemmajudge.schemas import (
     EvalResult,
     FailureMode,
     LeaderboardResult,
+    RunMetrics,
     TargetReport,
 )
 
@@ -52,7 +54,13 @@ AMD_PROOF_FILES = (
 HISTORY_LIMIT = 12
 SOURCE_AMD_PROOF = "amd_proof"
 SOURCE_LIVE = "live"
+SOURCE_RECORDED = "recorded"
 SOURCE_SIMULATED = "simulated"
+
+RUN_RECORDED_AMD = "Recorded AMD proof (W7900 ROCm)"
+RUN_RECORDED_LEADERBOARD = "Recorded leaderboard target"
+RUN_LIVE_BACKEND = "Live Gemma backend (advanced)"
+RUN_SIMULATED = "Simulated fallback"
 
 INK = "#050B14"
 MUTED = "#5B6878"
@@ -370,6 +378,35 @@ def _run_eval_sync(config: EvalConfig, *, offline: bool, settings: Any | None) -
     return asyncio.run(coro)
 
 
+def _recorded_target_options(board: LeaderboardResult | None) -> list[str]:
+    if board is None:
+        return []
+    return [_short(target.target_model_id) for target in board.ranked]
+
+
+def _recorded_eval_from_board(board: LeaderboardResult, target_label: str) -> EvalResult:
+    by_short = {_short(target.target_model_id): target for target in board.targets}
+    target = by_short[target_label]
+    return EvalResult(
+        config=EvalConfig(
+            failure_mode=board.failure_mode,
+            n_cases=target.n_cases,
+            target_endpoint="recorded://docs/real_runs/leaderboard.json",
+            target_model_id=target.target_model_id,
+        ),
+        verdicts=target.verdicts,
+        attacks=board.attacks,
+        cost=board.cost,
+        metrics=RunMetrics(
+            wall_clock_seconds=target.wall_clock_seconds,
+            n_cases=target.n_cases,
+            inference_backend="recorded Gemma-27B Fireworks run",
+            model_id=board.engine_model_id,
+            target_model_id=target.target_model_id,
+        ),
+    )
+
+
 def _default_config(settings: Any | None, offline: bool) -> EvalConfig:
     if offline or settings is None:
         return EvalConfig(
@@ -458,6 +495,8 @@ def _result_label(entry: dict[str, Any]) -> str:
     source = entry.get("source")
     if source == SOURCE_AMD_PROOF:
         backend = "VERIFIED AMD"
+    elif source == SOURCE_RECORDED:
+        backend = "RECORDED REAL"
     elif entry.get("offline"):
         backend = "SIMULATED"
     else:
@@ -517,8 +556,8 @@ def _render_read_card(title: str, body: str, eyebrow: str | None = None) -> None
 
 
 def _render_header(settings: Any | None) -> None:
-    backend = settings.backend.value if settings else "simulated fallback"
-    model = _short(settings.model_id) if settings else "configure env for live run"
+    backend = settings.backend.value if settings else "recorded artifact viewer"
+    model = _short(settings.model_id) if settings else "Gemma proof + real runs"
     st.markdown(
         f"""
         <section class="gj-hero">
@@ -534,29 +573,52 @@ def _render_header(settings: Any | None) -> None:
     )
 
 
-def _render_run_form(settings: Any | None, config_error: str | None) -> None:
+def _render_run_form(
+    settings: Any | None,
+    config_error: str | None,
+    board: LeaderboardResult | None,
+) -> None:
     with st.container(border=True):
         st.markdown(
             """
             <div class="gj-live-head">
-              <div class="gj-kicker">Live Evaluation</div>
-              <strong>Run the evaluator</strong>
-              <span>Choose mode, cases, then launch the attacker -> target -> judge loop.</span>
+              <div class="gj-kicker">Evaluation Console</div>
+              <strong>Load a real run</strong>
+              <span>Replay committed real runs, or switch to a private live backend.</span>
             </div>
             """,
             unsafe_allow_html=True,
         )
-        offline_default = settings is None
-        offline = st.toggle(
-            "Simulated demo (no keys)",
-            value=offline_default,
-            help=(
-                "Illustrative fallback only. Real AMD evidence requires Fireworks "
-                "or MI300X config."
-            ),
-            key="run_offline",
+        modes = [RUN_RECORDED_AMD]
+        if board and board.ranked:
+            modes.append(RUN_RECORDED_LEADERBOARD)
+        modes.append(RUN_LIVE_BACKEND)
+        modes.append(RUN_SIMULATED)
+        run_mode = st.selectbox(
+            "Run source",
+            modes,
+            help="Recorded runs are real committed GemmaJudge artifacts, not generated mock data.",
+            key="run_source",
         )
-        default = _default_config(settings, offline)
+
+        recorded_target = None
+        if run_mode == RUN_RECORDED_LEADERBOARD and board:
+            options = _recorded_target_options(board)
+            recorded_target = st.selectbox(
+                "Recorded target",
+                options,
+                key="recorded_target",
+            )
+
+        offline = run_mode == RUN_SIMULATED
+        live = run_mode == RUN_LIVE_BACKEND
+        editable_run = live or offline
+        if run_mode == RUN_RECORDED_AMD and (proof := _load_amd_proof_result()):
+            default = proof.config
+        elif run_mode == RUN_RECORDED_LEADERBOARD and board and recorded_target:
+            default = _recorded_eval_from_board(board, recorded_target).config
+        else:
+            default = _default_config(settings, offline or not live)
 
         col_left, col_right = st.columns([1, 1])
         with col_left:
@@ -564,6 +626,7 @@ def _render_run_form(settings: Any | None, config_error: str | None) -> None:
                 "Failure mode",
                 [mode.value for mode in FailureMode],
                 index=[mode.value for mode in FailureMode].index(default.failure_mode.value),
+                disabled=not editable_run,
                 key="run_failure_mode",
             )
         with col_right:
@@ -573,6 +636,7 @@ def _render_run_form(settings: Any | None, config_error: str | None) -> None:
                 max_value=20,
                 value=min(default.n_cases, 20),
                 help="Small live batches keep the demo under the 30s rule.",
+                disabled=not editable_run,
                 key="run_n_cases",
             )
 
@@ -580,13 +644,13 @@ def _render_run_form(settings: Any | None, config_error: str | None) -> None:
             endpoint = st.text_input(
                 "Target endpoint",
                 value=default.target_endpoint,
-                disabled=offline,
+                disabled=not live,
                 key="run_endpoint",
             )
             model = st.text_input(
                 "Target model id",
                 value=default.target_model_id,
-                disabled=offline,
+                disabled=not live,
                 key="run_model",
             )
 
@@ -597,20 +661,57 @@ def _render_run_form(settings: Any | None, config_error: str | None) -> None:
             target_model_id=model or default.target_model_id,
         )
 
-        if offline:
+        if run_mode == RUN_RECORDED_AMD:
+            st.success(
+                "Recorded real AMD run - Gemma attacker+judge served with vLLM + ROCm on W7900."
+            )
+        elif run_mode == RUN_RECORDED_LEADERBOARD:
+            st.success(
+                "Recorded real leaderboard - Gemma-27B attacker+judge evaluated live target models."
+            )
+        elif offline:
             st.info("SIMULATED RUN - illustrative only. Not a real Gemma/AMD evaluation.")
-        elif config_error:
-            st.error("Real backend is not configured: " + config_error)
-        else:
+        elif live and config_error:
+            st.error(
+                "Private live backend is not configured on this public URL. Recorded real runs "
+                "above are the submitted evidence. To run live Gemma, set env vars from "
+                ".env.example. Details: "
+                + config_error
+            )
+        elif live:
             st.info(
                 f"Real backend ready: `{settings.backend.value}` · "
                 f"`{_short(settings.model_id)}`"
             )
 
-        if st.button("Run evaluation", type="primary", use_container_width=True, key="run_button"):
-            if not offline and settings is None:
+        if st.button("Load evaluation", type="primary", use_container_width=True, key="run_button"):
+            if run_mode == RUN_RECORDED_AMD:
+                proof = _load_amd_proof_result()
+                if proof is None:
+                    st.error("Recorded AMD proof artifact is missing or invalid.")
+                else:
+                    _push_result(
+                        proof,
+                        offline=False,
+                        source=SOURCE_AMD_PROOF,
+                        created_at="recorded AMD proof",
+                    )
+                    st.info("Loaded recorded AMD proof run.")
+            elif run_mode == RUN_RECORDED_LEADERBOARD:
+                if board is None or recorded_target is None:
+                    st.error("Recorded leaderboard artifact is missing or invalid.")
+                else:
+                    result = _recorded_eval_from_board(board, recorded_target)
+                    _push_result(
+                        result,
+                        offline=False,
+                        source=SOURCE_RECORDED,
+                        created_at="recorded leaderboard",
+                    )
+                    st.info("Loaded recorded real leaderboard target.")
+            elif live and settings is None:
                 st.error(
-                    "Cannot run the real backend yet. Turn simulated mode on or configure env."
+                    "Cannot run the private live backend yet. Use a recorded run or configure env."
                 )
             else:
                 with st.spinner("Running attacker -> target -> judge..."):
@@ -683,6 +784,12 @@ def _render_risk_report(result: EvalResult, *, offline: bool, source: str = SOUR
         st.success(
             "VERIFIED AMD RUN - recorded W7900 ROCm artifact from "
             "docs/amd_proof/w7900/eval_result.json. "
+            f"ASR {_pct(result.attack_success_rate)} ({failed}/{len(result.verdicts)} failed)."
+        )
+    elif source == SOURCE_RECORDED:
+        st.success(
+            "RECORDED REAL RUN - committed GemmaJudge leaderboard artifact from "
+            "docs/real_runs/leaderboard.json. "
             f"ASR {_pct(result.attack_success_rate)} ({failed}/{len(result.verdicts)} failed)."
         )
     metrics = result.metrics
@@ -868,7 +975,12 @@ def _render_amd_proof(settings: Any | None, config_error: str | None) -> None:
         st.info("AMD proof result could not be loaded from docs/amd_proof/w7900/eval_result.json.")
 
     if config_error:
-        st.info("Live backend setup pending: " + config_error)
+        st.info(
+            "This public URL is a recorded-run dashboard over committed real artifacts. "
+            "Private live Gemma can be enabled with Streamlit Secrets or Docker env vars "
+            "from .env.example when needed. Details: "
+            + config_error
+        )
 
     with st.expander("Live backend config", expanded=False):
         live_rows = [
@@ -926,7 +1038,7 @@ def main() -> None:
         _render_header(settings)
         live_col, result_col = st.columns([0.42, 0.58], gap="large")
         with live_col:
-            _render_run_form(settings, config_error)
+            _render_run_form(settings, config_error, board)
         with result_col:
             _render_results()
     elif page == "Leaderboard":

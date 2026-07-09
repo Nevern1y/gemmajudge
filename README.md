@@ -3,10 +3,8 @@
 **Adversarial LLM evaluation, powered by Gemma on AMD.**
 
 GemmaJudge uses one open-weight model family (Gemma) in two adversarial roles — an
-**Attacker** that generates targeted adversarial test cases for a chosen failure mode,
-and a **Judge** that scores a target model's responses against a rubric — running the
-closed loop with committed proof of Gemma self-hosted on AMD GPUs via vLLM + ROCm. The
-live demo can use a managed OpenAI-compatible backend for uptime.
+**Attacker** that generates targeted adversarial test cases and a **Judge** that scores
+target responses — with committed proof of Gemma self-hosted on AMD GPUs via vLLM + ROCm.
 
 Built for the **AMD Developer Hackathon: ACT II — Track 3 (Unicorn)**.
 
@@ -16,9 +14,8 @@ Built for the **AMD Developer Hackathon: ACT II — Track 3 (Unicorn)**.
 ## Hackathon submission artifacts
 
 Track 3 (Unicorn) requires a GitHub repository, demo video, and slide deck PDF; a live
-hosted URL is optional but recommended. The official participant guide explicitly says
-**no Docker image is required for Track 3**. A `Dockerfile` is included only as a
-reproducibility convenience, not as a submission gate.
+hosted URL is optional but recommended. The hackathon also requires submissions to be
+containerized, so this repo includes a `Dockerfile` for a reproducible one-command run.
 
 - **GitHub repository:** <https://github.com/Nevern1y/gemmajudge>
 - **Live demo URL:** <https://gemmajudge.streamlit.app/>
@@ -76,27 +73,30 @@ cp .env.example .env        # fill in your keys — never commit .env
 streamlit run app.py
 ```
 
-Or with Docker (optional for Track 3; the `Dockerfile` is only for reproducible local
-runs, not a required Unicorn-track artifact):
+Or with Docker:
 
 ```bash
 docker build -t gemmajudge .
-docker run --rm -p 8501:8501 --env-file .env gemmajudge   # open http://localhost:8501
+docker run --rm -p 8501:8501 gemmajudge   # open http://localhost:8501
+# optional real backend: add --env-file .env
 ```
 
 ### Try it in 30 seconds — no keys, no network
 
-A **simulated** backend runs the whole attack→run→judge loop offline, so you can see
-the product before wiring up a real managed or self-hosted AMD backend:
+The public Streamlit app is a zero-cost viewer over committed **real** GemmaJudge runs:
+the W7900 ROCm proof in `docs/amd_proof/w7900/eval_result.json` and the real Gemma-27B
+leaderboard in `docs/real_runs/leaderboard.json`. No API key is needed to inspect the
+product flow, metrics, prompts, target responses, and judge reasoning.
+
+A clearly labeled simulated backend is still available as a development fallback:
 
 ```bash
 python -m gemmajudge.demo --offline        # full report in your terminal
 # or, in the UI: streamlit run app.py  → toggle "Simulated demo" (on by default)
 ```
 
-> Offline mode is **clearly labeled SIMULATED** — it's for development and demo
-> fallback only. The real submission includes committed Gemma-on-AMD proof; canned output is never
-> presented as a real model run.
+> Offline mode is **clearly labeled SIMULATED** — it's for development fallback only.
+> The submitted demo defaults to recorded real artifacts, not canned output.
 
 ## The engine seam
 
@@ -125,10 +125,13 @@ All configuration is via environment variables — nothing is hardcoded. See
 [`.env.example`](.env.example) for the full list. Two inference backends, selected by
 `INFERENCE_BACKEND`:
 
-- `fireworks` — managed OpenAI-compatible backend for the live demo; not the AMD proof path.
+- `fireworks` — optional private live backend for short demos; not the AMD proof path.
 - `mi300x` — self-hosted OpenAI-compatible vLLM backend on an AMD GPU.
   The committed proof used an AMD Radeon PRO W7900 (gfx1100); the same backend serves
   an AMD Instinct MI300X unchanged.
+
+The public URL does not require a live model endpoint. For a private live Gemma demo,
+set `MODEL_ID` and endpoint credentials from `.env.example`; never commit real keys.
 
 ## AMD compute proof
 

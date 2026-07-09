@@ -31,25 +31,28 @@ def test_app_loads_mission_control_without_exception():
     assert metric_values["Failed cases"] == "4/5"
 
 
-def test_simulated_run_renders_risk_report_and_warning():
+def test_recorded_amd_run_renders_risk_report():
     at = AppTest.from_file(_APP, default_timeout=60).run()
     assert not at.exception
 
-    # With no env configured, simulated mode is enabled and the first button is
-    # the primary live-run action in the Mission Control console.
-    assert any(getattr(toggle, "value", False) for toggle in at.toggle)
+    # With no env configured, the public app defaults to committed real artifacts,
+    # not simulated or external live API calls.
+    assert any(
+        getattr(selectbox, "value", "") == "Recorded AMD proof (W7900 ROCm)"
+        for selectbox in at.selectbox
+    )
     at.button[0].click().run()
 
     assert not at.exception
     text = "\n".join(_texts(at))
-    assert "SIMULATED" in text
+    assert "VERIFIED AMD RUN" in text
     assert "Risk Report" in text
     assert "Attack Success Rate" in text
     assert "Worst-Case Dossier" in text
     assert len(at.expander) >= 1
     metric_values = {metric.label: metric.value for metric in at.metric}
     assert metric_values["Attack Success Rate"] == "80%"
-    assert metric_values["Failed cases"] == "8/10"
+    assert metric_values["Failed cases"] == "4/5"
 
 
 def test_real_leaderboard_artifact_is_visible():

@@ -30,8 +30,23 @@ def test_missing_vars_are_aggregated_and_loud():
         load_settings({"INFERENCE_BACKEND": "fireworks"})
     msg = str(exc.value)
     # every missing var named in a single message
-    for var in ("MODEL_ID", "FIREWORKS_API_KEY", "TARGET_ENDPOINT", "TARGET_MODEL_ID"):
+    for var in ("MODEL_ID", "FIREWORKS_API_KEY"):
         assert var in msg
+    assert "TARGET_ENDPOINT" not in msg
+    assert "TARGET_MODEL_ID" not in msg
+
+
+def test_fireworks_defaults_target_to_same_backend():
+    s = load_settings(
+        {
+            "INFERENCE_BACKEND": "fireworks",
+            "MODEL_ID": "accounts/demo/deployments/gemma-live",
+            "FIREWORKS_API_KEY": "sk-super-secret-value",
+        }
+    )
+    assert s.target.base_url == s.engine.base_url
+    assert s.target.model_id == "accounts/fireworks/models/gpt-oss-120b"
+    assert s.target.api_key.get_secret_value() == "sk-super-secret-value"
 
 
 def test_secret_never_appears_in_repr_or_str():
@@ -45,10 +60,11 @@ def test_secret_never_appears_in_repr_or_str():
 
 def test_error_message_contains_no_secret_values():
     env = dict(_FIREWORKS_OK)
-    del env["TARGET_ENDPOINT"]  # force an error while a secret is present
+    del env["MODEL_ID"]  # force an error while a secret is present
     with pytest.raises(ConfigError) as exc:
         load_settings(env)
     assert "sk-super-secret-value" not in str(exc.value)
+    assert "MODEL_ID" in str(exc.value)
 
 
 def test_mi300x_requires_base_url():

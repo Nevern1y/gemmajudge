@@ -40,7 +40,7 @@ for the drill-down.
   real anchor. There is NO officially-confirmed fixed cash "Best Use of Gemma" bonus — do
   not put a Gemma-bonus dollar figure anywhere.
 - **What we submit (Track 3):** GitHub repo (Yes) + demo video (Yes) + slide deck PDF (Yes)
-  + live demo URL (optional but recommended). **No Docker image is required for Track 3.**
+  + live demo URL (optional but recommended) + containerized app via `Dockerfile`.
 - **Auto pre-screening inspects: repo + slide deck PDF + live URL. It does NOT process the
   video.** So repo/deck/URL are the priority; video is for the human-judge round only.
 - **Judging criteria (4, treated co-equal; no official % published):** Creativity &

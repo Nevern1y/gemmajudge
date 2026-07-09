@@ -126,7 +126,7 @@ class RunMetrics(BaseModel):
     wall_clock_seconds: float = 0.0
     n_cases: int = 0
     inference_backend: str = ""  # "fireworks" | "mi300x" — shown on-screen
-    model_id: str = ""  # the Attacker+Judge Gemma id
+    model_id: str = ""  # the attacker+judge engine model id
     target_model_id: str = ""
 
     @property
@@ -256,7 +256,7 @@ class TargetReport(BaseModel):
 class LeaderboardResult(BaseModel):
     """Many targets ranked by ASR under ONE Gemma-generated attack set.
 
-    ``engine_model_id`` is the Gemma attacker+judge; ``attacks`` is the shared set
+    ``engine_model_id`` is the attacker+judge engine; ``attacks`` is the shared set
     (kept so the UI can join any target's verdicts back to prompts for drill-down,
     exactly like :meth:`EvalResult.cases`)."""
 

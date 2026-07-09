@@ -273,7 +273,7 @@ def _first_json_object(text: str) -> str | None:
 
 
 def make_engine_client(settings: Settings) -> LLMClient:
-    """Client for the Attacker + Judge Gemma (the selected inference backend)."""
+    """Client for the attacker+judge engine model."""
     return LLMClient.from_endpoint(settings.engine, timeout=settings.request_timeout_s)
 
 

@@ -1,52 +1,49 @@
 # Deploying the live demo URL
 
-The auto-screener checks a **live URL** (one of the inspected artifacts). Fastest path:
-**Streamlit Community Cloud**, optionally backed by a managed OpenAI-compatible endpoint
-for uptime. Keep the self-hosted AMD run for the screenshottable AMD proof
-(`docs/amd_proof/`).
+The auto-screener checks a **live URL** (one of the inspected artifacts). The public
+Streamlit app is a zero-cost viewer over committed real artifacts: the self-hosted AMD
+W7900 run and the real Gemma leaderboard. Keep live model endpoints private/local unless
+you intentionally enable a short judging demo.
 
 ## Streamlit Community Cloud (recommended)
 
 1. Repo must be **public** on GitHub (Track 3 requires a public repo anyway).
 2. Go to <https://share.streamlit.io> → **New app** → pick `Nevern1y/gemmajudge`,
    branch `main`, main file `app.py`.
-3. In **Advanced settings → Secrets**, paste (these become env vars):
-   ```toml
-   INFERENCE_BACKEND = "fireworks"
-   # Gemma is DEPLOY-ONLY on Fireworks (see the ⚠️ note below): MODEL_ID is your
-   # on-demand deployment path, not a serverless model id.
-   MODEL_ID = "accounts/<your-account>/deployments/<deployment-id>"
-   FIREWORKS_API_KEY = "fw_..."
-   FIREWORKS_BASE_URL = "https://api.fireworks.ai/inference/v1"
-   TARGET_ENDPOINT = "https://api.fireworks.ai/inference/v1"
-   TARGET_MODEL_ID = "accounts/fireworks/models/gpt-oss-120b"  # a serverless target
-   TARGET_API_KEY = "fw_..."
-   PRICE_PER_1K_PROMPT_TOKENS = "0"
-   PRICE_PER_1K_COMPLETION_TOKENS = "0"
-   PRICE_SOURCE = "Fireworks pricing 2026-07"
-   ```
-   ⚠️ **Verified 2026-07-07: Fireworks has NO serverless Gemma** — every Gemma model
-   (`gemma-3-4b/12b/27b-it`, `gemma-4-*`) is **deploy-only** (dedicated GPU). To run
-   Gemma as the engine you first create an on-demand deployment (Model Library →
-   the Gemma model → **Create Deployment**), wait for **Ready** (H100 capacity can be
-   scarce — retry if it says "no available capacity"), then use its
-   `accounts/<acct>/deployments/<id>` path as `MODEL_ID`. Serverless models
-   (`gpt-oss-120b`, `glm-5p1/2`, `deepseek-v4-pro`, `kimi-k2p6`) make good *targets*.
-   Remember to **delete the deployment** when done — it bills per GPU-hour.
+3. No secrets are required for the submitted public viewer. It will load:
+   `docs/amd_proof/w7900/eval_result.json` and `docs/real_runs/leaderboard.json`.
+4. Optional private live Gemma backend: in **Advanced settings → Secrets**, paste:
+    ```toml
+    INFERENCE_BACKEND = "fireworks"
+    # Gemma attacker + judge deployment path.
+    MODEL_ID = "accounts/<your-account>/deployments/<gemma-deployment-id>"
+    FIREWORKS_API_KEY = "fw_..."
+    FIREWORKS_BASE_URL = "https://api.fireworks.ai/inference/v1"
+    PRICE_PER_1K_PROMPT_TOKENS = "0"
+    PRICE_PER_1K_COMPLETION_TOKENS = "0"
+    PRICE_SOURCE = "Fireworks pricing 2026-07"
+    ```
+    By default, the target model is `accounts/fireworks/models/gpt-oss-120b` on the
+    same Fireworks key. Add `TARGET_MODEL_ID`, `TARGET_ENDPOINT`, or `TARGET_API_KEY`
+    only if you want to override that target.
+   ⚠️ Gemma on Fireworks is usually deployment-only. For cost control, enable this
+   live backend only during judging windows or demos, then delete the deployment when
+   done; it bills per GPU-hour. The committed AMD proof remains the primary evidence
+   that GemmaJudge runs self-hosted on AMD via ROCm/vLLM.
    (Streamlit maps `st.secrets` and env; our `config.load_settings()` reads env, and
    `python-dotenv` is a no-op there — the platform vars win.)
-4. Deploy. First load installs `requirements.txt` (includes `streamlit`, `openai`,
-   `pydantic`, `pandas`). The app reads the secrets above and runs real Fireworks calls.
-   Even with **no** engine configured, the **🏆 Robustness leaderboard** tab always
-   renders the committed real Gemma-3-27B run (`docs/real_runs/leaderboard.json`).
-5. Verify from an incognito window before submitting.
+5. Deploy. First load installs `requirements.txt` (includes `streamlit`, `openai`,
+    `pydantic`, `pandas`). The app reads the secrets above and runs real Fireworks calls.
+    Even with **no** engine configured, the **🏆 Robustness leaderboard** tab always
+    renders the committed real Gemma-3-27B run (`docs/real_runs/leaderboard.json`).
+6. Verify from an incognito window before submitting.
 
 **For the AMD story, the self-hosted AMD run** is the DQ-gate proof. A managed backend is
 only for live-demo uptime and is not presented as the AMD-compute proof.
 
 ## Fallback: point the URL at the self-hosted AMD endpoint
 
-If a needed Gemma variant isn't on Fireworks, serve it on a self-hosted AMD GPU (see
+If the needed Gemma variant isn't on Fireworks, serve it on a self-hosted AMD GPU (see
 `docs/amd_proof/`) and set `INFERENCE_BACKEND=mi300x`, `MI300X_BASE_URL=<public url>`.
 Note the AMD notebook's 4-hour/24-hour budget — Fireworks is the safer public backend.
 
@@ -63,9 +60,9 @@ push adds new module-level exports; ordinary edits hot-reload fine.
 
 - Repo public, CI green on `main`.
 - Live URL: <https://gemmajudge.streamlit.app/> loads from an incognito browser.
-- Docker image is **not required for Track 3 Unicorn** per the official participant guide; the included `Dockerfile` is optional reproducibility tooling only.
-- `python -m gemmajudge.demo --n 10` returns a real ASR with your keys.
-- **🏆 Robustness leaderboard** tab shows the real Gemma run, and a simulated live run
-  completes in an incognito session.
+- Docker image builds successfully: `docker build -t gemmajudge .` and runs the submitted Streamlit app.
+- Mission Control loads the recorded AMD proof and recorded leaderboard target from
+  committed JSON artifacts.
+- **🏆 Robustness leaderboard** tab shows the real Gemma run in an incognito session.
 - `docs/amd_proof/w7900/` has the AMD (Radeon W7900) `rocm-smi` + vLLM logs + serve command + a real `eval_result.json` committed.
 - Slide deck PDF uploaded to the lablab.ai submission form. English-only outputs. No secrets committed.
