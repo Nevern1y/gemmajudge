@@ -13,7 +13,7 @@
 #   # optional real backend: add --env-file .env
 #   # then open http://localhost:8501
 #
-FROM python:3.11-slim
+FROM --platform=linux/amd64 python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \

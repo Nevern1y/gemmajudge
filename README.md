@@ -14,8 +14,8 @@ Built for the **AMD Developer Hackathon: ACT II — Track 3 (Unicorn)**.
 ## Hackathon submission artifacts
 
 Track 3 (Unicorn) requires a GitHub repository, demo video, and slide deck PDF; a live
-hosted URL is optional but recommended. The hackathon also requires submissions to be
-containerized, so this repo includes a `Dockerfile` for a reproducible one-command run.
+hosted URL is optional but recommended. This repo includes a `Dockerfile` for a reproducible
+one-command run and the linux/amd64 platform required by the general container rules.
 
 - **GitHub repository:** <https://github.com/Nevern1y/gemmajudge>
 - **Live demo URL:** <https://gemmajudge.streamlit.app/>
