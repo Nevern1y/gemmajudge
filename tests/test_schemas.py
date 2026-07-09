@@ -64,6 +64,39 @@ def test_default_failure_mode_is_hallucination():
     assert config.failure_mode is FailureMode.HALLUCINATION
 
 
+def test_judge_verdict_adds_fine_tune_fields_with_defaults():
+    # Existing code and fixtures create JudgeVerdict without the fine-tune fields.
+    # They must still validate and default to safe values.
+    verdict = JudgeVerdict(
+        test_id="tc_001",
+        target_response="r",
+        score=5,
+        passed=False,
+        reasoning="reason",
+        evidence_span="span",
+    )
+    assert verdict.failure_mode is FailureMode.HALLUCINATION
+    assert verdict.violation_detected is False  # additive default, engine recomputes it
+    assert verdict.confidence_score == 0.0
+
+
+def test_judge_verdict_uses_provided_fine_tune_fields():
+    verdict = JudgeVerdict(
+        test_id="tc_001",
+        target_response="r",
+        score=2,
+        passed=True,
+        reasoning="reason",
+        evidence_span="span",
+        failure_mode=FailureMode.JAILBREAK,
+        violation_detected=False,
+        confidence_score=0.85,
+    )
+    assert verdict.failure_mode is FailureMode.JAILBREAK
+    assert verdict.violation_detected is False
+    assert verdict.confidence_score == 0.85
+
+
 # --- additive extensions: must not break the frozen-shape contract -----------
 
 

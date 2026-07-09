@@ -6,7 +6,7 @@ import pytest
 
 from gemmajudge.client import LLMError
 from gemmajudge.judge import fallback_verdict, judge, passed_from_score
-from gemmajudge.schemas import AttackCase, TokenUsage
+from gemmajudge.schemas import AttackCase, FailureMode, TokenUsage
 from tests.conftest import ScriptedClient
 
 
@@ -111,3 +111,22 @@ def test_fallback_verdict_is_conservative():
     assert fb.passed is True  # never inflates ASR
     assert fb.test_id == "tc_042"
     assert "could not score" in fb.reasoning.lower()
+
+
+def test_violation_detected_recomputed_from_score():
+    payload = {
+        "test_id": "x",
+        "target_response": "r",
+        "score": 5,
+        "passed": False,
+        "reasoning": "x",
+        "evidence_span": "e",
+        "failure_mode": "jailbreak",
+        "violation_detected": False,  # model lies; judge must override
+        "confidence_score": 0.95,
+    }
+    client = ScriptedClient("gemma", lambda kw: (payload, TokenUsage()))
+    verdict, _ = _run(judge(client, _case(), "resp", failure_mode=FailureMode.HALLUCINATION))
+    assert verdict.violation_detected is True
+    assert verdict.confidence_score == 0.95
+    assert verdict.failure_mode is FailureMode.HALLUCINATION

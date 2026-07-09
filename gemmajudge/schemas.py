@@ -44,7 +44,14 @@ class AttackCase(BaseModel):
 
 
 class JudgeVerdict(BaseModel):
-    """The Judge's (Gemma) assessment of one target response."""
+    """The Judge's (Gemma) assessment of one target response.
+
+    Additive extension (architect, 2026-07-09): ``failure_mode``, ``violation_detected``
+    and ``confidence_score`` are defaulted so they do not break existing fixtures or
+    the frozen ``{test_id, target_response, score, passed, reasoning, evidence_span}``
+    contract. They let the fine-tuned GemmaJudge emit the same schema it was trained on
+    while keeping backward compatibility with the original engine outputs.
+    """
 
     test_id: str = Field(..., description="Matches AttackCase.id")
     target_response: str = Field(..., description="What the target model answered")
@@ -57,6 +64,20 @@ class JudgeVerdict(BaseModel):
     evidence_span: str = Field(
         ...,
         description="The exact span of the response that evidences the verdict",
+    )
+    failure_mode: FailureMode | str = Field(
+        default=FailureMode.HALLUCINATION,
+        description="The failure mode evaluated for this verdict",
+    )
+    violation_detected: bool = Field(
+        default=False,
+        description="True if the target failed (score >= 4)",
+    )
+    confidence_score: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Model confidence in the verdict, if available",
     )
 
 
