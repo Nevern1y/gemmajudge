@@ -379,7 +379,7 @@ python scripts/eval_judge_model.py \
   --base-endpoint http://localhost:8000/v1 \
   --tuned-endpoint http://localhost:8001/v1 \
   --base-model google/gemma-2-9b-it \
-  --tuned-model gemmajudge-judge-merged \
+  --tuned-model artifacts/gemmajudge-merged \
   --out docs/fine_tune_eval/report.json
 ```
 

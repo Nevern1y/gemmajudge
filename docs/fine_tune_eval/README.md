@@ -69,8 +69,8 @@ Use two terminals so the base and tuned models are both available to the compari
 script:
 
 ```bash
-vllm serve google/gemma-2-9b-it --port 8000 --dtype bfloat16 --max-model-len 2048
-vllm serve artifacts/gemmajudge-merged --port 8001 --dtype bfloat16 --max-model-len 2048
+vllm serve google/gemma-2-9b-it --port 8000 --dtype bfloat16 --max-model-len 2048 --structured-outputs-config.backend auto
+vllm serve artifacts/gemmajudge-merged --port 8001 --dtype bfloat16 --max-model-len 2048 --structured-outputs-config.backend auto
 ```
 
 For a 4B fallback proof, change the base model in the first command and eval command to

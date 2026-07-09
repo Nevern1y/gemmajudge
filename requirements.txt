@@ -9,3 +9,11 @@ plotly>=5.22.0          # charts
 # Dev
 pytest>=8.2.0
 ruff>=0.5.0
+
+# Fine-tuning / serving (AMD ROCm pod installs torch from rocm index; see docs/FINE_TUNING.md)
+# torch --index-url https://download.pytorch.org/whl/rocm6.2
+# transformers
+# peft
+# accelerate
+# vllm
+# bitsandbytes-rocm  # optional, only if QLoRA works on the pod image
