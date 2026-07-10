@@ -51,9 +51,9 @@ config (target endpoint, failure mode, N)
 ## Recorded demonstration leaderboard
 
 The same loop scales past a single target: **one** Gemma-generated attack set, run
-against **many** models, ranked by Attack Success Rate — a self-hosted, open-weight
-red-team + judge that benchmarks any model's hallucination robustness on hardware you
-control. This is a **recorded real run** (Gemma-3-27B judge on Fireworks, 8 shared
+against **many** models, ranked by Attack Success Rate — an open-weight red-team + judge
+workflow that can run on hardware you control. This is a **recorded real run**
+(Gemma-3-27B judge on Fireworks, 8 shared
 prompts), presented as a product demonstration rather than a statistically calibrated
 benchmark:
 

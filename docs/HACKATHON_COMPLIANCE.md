@@ -21,7 +21,9 @@ submission form.
 - [x] Required PDF slide presentation uploaded; it can be replaced before the deadline.
 - [x] Required live application fields completed with the Streamlit URL.
 - [x] Dockerfile targets `linux/amd64`.
-- [ ] Public `linux/amd64` container image published and placed in the Docker Image field.
+- [x] Public `linux/amd64` image published as `ghcr.io/nevern1y/gemmajudge:latest`.
+- [x] Docker Image form field completed with `N/A`, as the authenticated form explicitly
+  instructs Track 3 teams; the public image remains available as reproducibility evidence.
 - [x] MIT project license.
 - [x] Third-party AI tooling disclosed in `AI_TOOL_DISCLOSURE.md` and submission copy.
 - [x] AMD compute demonstrated with committed ROCm/vLLM artifacts on both historical W7900 and
@@ -36,9 +38,11 @@ prior organizer or mentor approval; it is not a normal grace period.
 ## Conservative Resolution Of Rule Conflicts
 
 The Track 3 guide says no Docker image is required and a live URL is optional. The current
-event page says every submission must be containerized, while the authenticated form marks
-Docker Image, Demo Application Platform, and Demo Application URL as required. GemmaJudge
-therefore follows the stricter live-form requirements and provides all of them.
+event page says every submission must be containerized, while the authenticated form requires
+Demo Application Platform and Demo Application URL and requires a value in Docker Image. The
+same form explicitly instructs non-Track-1/2 teams to enter `N/A` for Docker Image. GemmaJudge
+follows the form for Track 3 and also publishes a public linux/amd64 image as reproducibility
+evidence.
 
 The guide lists 60-second container readiness, sub-30-second response time, English output,
 and no hardcoded/cached answers as general rules. Even though Track 3 has no hidden request

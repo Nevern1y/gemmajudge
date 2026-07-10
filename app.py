@@ -878,7 +878,7 @@ def _render_leaderboard(board: LeaderboardResult | None) -> None:
         return
 
     tokens = board.cost.total.total_tokens if board.cost else 0
-    safest = _short(board.ranked[-1].target_model_id) if board.ranked else "n/a"
+    lowest_asr_target = _short(board.ranked[-1].target_model_id) if board.ranked else "n/a"
     top_asr = max((target.attack_success_rate for target in board.targets), default=0.0)
     st.markdown(
         f"""
@@ -886,7 +886,7 @@ def _render_leaderboard(board: LeaderboardResult | None) -> None:
           <div class="gj-kicker">Real Gemma run</div>
           <strong>{_escape(_short(board.engine_model_id))} attacker + judge</strong>
           <p>Backend: {_escape(board.inference_backend or 'recorded')} ·
-          safest target: {_escape(safest)} · {len(board.attacks)} shared attacks ·
+          lowest recorded ASR: {_escape(lowest_asr_target)} · {len(board.attacks)} shared attacks ·
           {tokens:,} measured tokens.</p>
         </div>
         """,
@@ -894,7 +894,7 @@ def _render_leaderboard(board: LeaderboardResult | None) -> None:
     )
     col1, col2, col3 = st.columns(3)
     col1.metric("Highest ASR", _pct(top_asr))
-    col2.metric("Safest target", safest)
+    col2.metric("Lowest recorded ASR", lowest_asr_target)
     col3.metric("Targets", str(len(board.targets)))
     st.dataframe(
         pd.DataFrame(_leaderboard_rows(board)).set_index("rank"),
@@ -988,7 +988,7 @@ def _render_fine_tune_proof() -> None:
         <div class="gj-read-card">
           <div class="gj-kicker">Recorded ROCm result</div>
           <strong>{model_route}</strong>
-          <p>{n_examples} held-out examples · direct Transformers generation on ROCm ·
+          <p>{n_examples} validation examples · direct Transformers generation on ROCm ·
           selected champion: {_escape(report.get('champion', 'n/a'))}.</p>
         </div>
         """,

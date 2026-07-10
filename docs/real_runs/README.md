@@ -14,7 +14,7 @@ responses, not the simulated demo. They were produced on **2026-07-07**.
   OpenAI-compatible code path runs Gemma **self-hosted on AMD** (vLLM + ROCm) — see
    [`../amd_proof/`](../amd_proof/) for the AMD proof-of-compute (the primary committed
    evidence is a real **AMD Instinct MI300X VF / gfx942** run).
-- **Targets:** live Fireworks **serverless** frontier models
+- **Targets:** five live Fireworks **serverless** target models
   (`gpt-oss-120b`, `glm-5p1`, `glm-5p2`, `deepseek-v4-pro`, `kimi-k2p6`).
 - Total credit spend for all of this: **~$9** of the $50 grant.
 

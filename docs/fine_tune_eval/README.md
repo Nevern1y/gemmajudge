@@ -18,7 +18,7 @@ Evidence screenshots for the deck/video are included here:
 | Pass/fail accuracy | 66.1% | 75.0% |
 | Violation macro-F1 | 0.578 | 0.622 |
 | Mean absolute score error | 1.380 | 1.304 |
-| Evidence span rate when score >= 4 | 100.0% | 100.0% |
+| Evidence span rate when score >= 4 | 90.9% | 91.4% |
 | Average latency | 5.29s | 4.40s |
 | 3x repeat-score mean stdev (greedy decoding) | 0.00 | 0.00 |
 
