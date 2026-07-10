@@ -1,60 +1,60 @@
 # AMD Compute Proof
 
-> ## ✅ Committed proof-of-compute: AMD Radeon PRO W7900 (gfx1100)
->
-> The Track-3 AMD-compute gate is satisfied by a **real GemmaJudge run on an AMD Radeon PRO
-> W7900 (gfx1100 / RDNA3, 48 GB) via vLLM + ROCm 7.2** on AMD Developer Cloud. Artifacts are in
-> [`w7900/`](w7900/): `rocm_smi.txt` (shows `gfx1100`), `versions.txt`, `serve_command.txt`,
-> `vllm_engine.log` (+ `vllm_target.log`), `eval_result.json` (hallucination **ASR 80%**, judge
-> self-consistency **stdev 0.00**, 136.9 tok/s), and `notes.md`. Gemma-3-4b-it ran as the
-> attacker+judge and Gemma-3-1b-it as the target, both on the one 48 GB GPU.
->
-> The **MI300X notebook / script below is the AMD Instinct reference path** (identical code,
-> `INFERENCE_BACKEND=mi300x`) and has **not been executed yet** — every "MI300X" mention below
-> refers to that reference runbook, not to the committed proof.
+## Executed official-Gemma proof: AMD Instinct MI300X VF (`gfx942`)
 
----
+[`mi300x/`](mi300x/) is a real GemmaJudge production-loop run captured on AMD Developer
+Cloud on 2026-07-10. It uses official `google/gemma-3-*` model IDs after access was granted
+on Hugging Face:
 
-Evidence that Gemma runs on **AMD (self-hosted via vLLM + ROCm)** for GemmaJudge — satisfying
-the Track 3 gate: *"AMD compute usage is a requirement: projects that do not demonstrate it
-will be disqualified."*
+- Hardware: AMD Instinct MI300X VF (`gfx942`), 191.6875 GiB VRAM.
+- Stack: ROCm/HIP 6.4, PyTorch 2.9.0.dev+rocm6.4, vLLM 0.1.dev.
+- Attacker + Judge: `google/gemma-3-4b-it`.
+- Target: `google/gemma-3-1b-it`.
+- Serving: two local OpenAI-compatible vLLM endpoints on the same AMD GPU.
+- Eval: 3 model-generated hallucination cases, ASR 100% (3/3), full pipeline wall clock
+  55.31 seconds, with a 25-second client timeout per request.
 
-## Environment (AMD AI Notebooks portal)
+The committed artifacts are:
 
-- **Access:** AMD AI Developer Program → *AMD AI Notebooks* → **Request Notebook**.
-- **Runtime:** ROCm 7.2 + vLLM 0.16.0 + PyTorch 2.9.
-- **Hardware:** AMD Instinct MI300X (192 GB) — one GPU per notebook. *(Reference target; the
-  committed run above used an AMD Radeon PRO W7900 / gfx1100, 48 GB, from AMD Developer Cloud.)*
-- **Budget:** ~**4 hrs per 24 hrs**. Don't idle. Serve → capture proof → stop.
+- [x] `rocm_smi.txt` - `rocm-smi` plus `rocminfo` identity output showing AMD MI300X VF and
+  `gfx942`.
+- [x] `versions.txt` - ROCm, vLLM, PyTorch, GPU, and VRAM versions.
+- [x] `serve_command.txt` - exact two-server launch commands.
+- [x] `vllm_engine.log` and `vllm_target.log` - ROCm model loading and API-server startup.
+- [x] `attacker_prompt.md` - the exact novelty-safe attacker prompt used.
+- [x] `eval_result.json` - complete attacker output, target responses, verdicts, token usage,
+  metrics, and repeat-score data.
+- [x] `eval_summary.json` - clean machine-readable run summary.
+- [x] `notes.md` - hardware and metric scope notes.
+- [x] `proof.png` - terminal screenshot showing the hardware identity and run summary.
 
-## How to generate the proof (one notebook run)
+The generated attacks are raw model output. They are a small recorded demonstration, not a
+benchmark or human-calibrated factuality set. Repeated temperature-0 scores show deterministic
+score stability only; they do not establish judge correctness.
 
-1. Accept the **Gemma license** on Hugging Face for your chosen model and create a read
-   token. Gemma weights are gated.
-2. In the AMD Jupyter environment, open **[`mi300x_gemma.ipynb`](mi300x_gemma.ipynb)** and
-   run the cells top to bottom. It:
-   - prints `rocm-smi` + the ROCm/vLLM/PyTorch versions (hardware proof),
-   - serves Gemma via vLLM (OpenAI-compatible) — the **Attacker + Judge**, and optionally a
-     weak Gemma **target**, all on the one GPU,
-   - runs a smoke inference + a throughput measurement,
-   - runs the **full GemmaJudge loop** against the local endpoint and saves the result,
-   - writes `notes.md`,
-   - tears the servers down to stop the budget clock.
-   (Terminal alternative: [`serve_gemma_mi300x.sh`](serve_gemma_mi300x.sh).)
-3. **Screenshot** the `rocm-smi` cell and the ASR output — those are submission/demo visuals.
-4. Copy the notebook's `amd_proof_artifacts/*` into this folder and commit.
+## Historical W7900 proof
 
-## Artifacts committed (the DQ gate is green when these exist)
+[`w7900/`](w7900/) remains committed as earlier AMD Radeon PRO W7900 (`gfx1100`) evidence.
+Its attacker prompt contained concrete examples that could be repeated by the model, so it is
+historical provenance rather than the primary public demonstration. Do not use its 80% ASR or
+134.72-second full-pipeline metric in current public materials.
 
-The committed set lives in [`w7900/`](w7900/) (real AMD Radeon PRO W7900 run):
+## Reproduce on an AMD vLLM environment
 
-- [x] `rocm_smi.txt` — `rocm-smi` output showing the AMD GPU (`gfx1100`).
-- [x] `versions.txt` — ROCm / vLLM / PyTorch versions.
-- [x] `vllm_engine.log` (+ `vllm_target.log`) — model loading + serving on ROCm.
-- [x] `serve_command.txt` — the exact vLLM launch command(s) used.
-- [x] `eval_result.json` — a real GemmaJudge run against the AMD endpoint.
-- [x] `notes.md` — model id, VRAM footprint, measured throughput.
-- [x] `proof.png` — screenshot used by the app's AMD Proof page.
+1. Accept the Gemma Terms and authenticate locally with a read token. Never commit that token.
+2. Clone the repository and install the Python dependencies required by the runner.
+3. Start the two local servers using the commands in `mi300x/serve_command.txt`.
+4. Run the production seam with the bounded-timeout runner:
 
-> These files are intentionally committed (the `.gitignore` `runs/` rule does not cover this folder).
-> Do **not** commit any HF token — it goes in the notebook's runtime env only.
+```bash
+python scripts/run_amd_proof.py \
+  --engine-model google/gemma-3-4b-it \
+  --target-model google/gemma-3-1b-it \
+  --backend-label "AMD Instinct MI300X VF (gfx942, ROCm 6.4)" \
+  --n 3 \
+  --request-timeout 25 \
+  --output docs/amd_proof/mi300x/eval_result.json
+```
+
+`--request-timeout` rejects values greater than 30 seconds. The full multi-stage pipeline can
+be longer than an individual bounded request.

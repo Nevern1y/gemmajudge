@@ -35,11 +35,10 @@ from gemmajudge.schemas import (
 ROOT = Path(__file__).parent
 LEADERBOARD_PATH = ROOT / "docs" / "real_runs" / "leaderboard.json"
 AMD_PROOF_DIR = ROOT / "docs" / "amd_proof"
-AMD_PROOF_RUN_DIR = AMD_PROOF_DIR / "w7900"
+AMD_PROOF_RUN_DIR = AMD_PROOF_DIR / "mi300x"
 AMD_PROOF_RESULT_PATH = AMD_PROOF_RUN_DIR / "eval_result.json"
 AMD_PROOF_SCREENSHOTS = (
     AMD_PROOF_RUN_DIR / "proof.png",
-    ROOT.parent / "w7900_proof.png",
 )
 AMD_PROOF_FILES = (
     "rocm_smi.txt",
@@ -47,7 +46,9 @@ AMD_PROOF_FILES = (
     "vllm_engine.log",
     "vllm_target.log",
     "serve_command.txt",
+    "attacker_prompt.md",
     "eval_result.json",
+    "eval_summary.json",
     "notes.md",
     "proof.png",
 )
@@ -64,7 +65,7 @@ SOURCE_LIVE = "live"
 SOURCE_RECORDED = "recorded"
 SOURCE_SIMULATED = "simulated"
 
-RUN_RECORDED_AMD = "Recorded AMD proof (W7900 ROCm)"
+RUN_RECORDED_AMD = "Recorded AMD proof (MI300X ROCm)"
 RUN_RECORDED_LEADERBOARD = "Recorded leaderboard target"
 RUN_LIVE_BACKEND = "Live Gemma backend (advanced)"
 RUN_SIMULATED = "Simulated fallback"
@@ -653,7 +654,7 @@ def _render_run_form(
                 min_value=1,
                 max_value=20,
                 value=min(default.n_cases, 20),
-                help="Small live batches keep the demo under the 30s rule.",
+                help="Small live batches keep the full evaluation responsive.",
                 disabled=not editable_run,
                 key="run_n_cases",
             )
@@ -681,7 +682,7 @@ def _render_run_form(
 
         if run_mode == RUN_RECORDED_AMD:
             st.success(
-                "Recorded real AMD run - Gemma attacker+judge served with vLLM + ROCm on W7900."
+                "Recorded real AMD run - Gemma attacker+judge served with vLLM + ROCm on MI300X."
             )
         elif run_mode == RUN_RECORDED_LEADERBOARD:
             st.success(
@@ -800,8 +801,8 @@ def _render_risk_report(result: EvalResult, *, offline: bool, source: str = SOUR
         st.info("SIMULATED RUN - illustrative only. Not a real Gemma/AMD evaluation.")
     elif source == SOURCE_AMD_PROOF:
         st.success(
-            "VERIFIED AMD RUN - recorded W7900 ROCm artifact from "
-            "docs/amd_proof/w7900/eval_result.json. "
+            "VERIFIED AMD RUN - recorded MI300X ROCm artifact from "
+            "docs/amd_proof/mi300x/eval_result.json. "
             f"ASR {_pct(result.attack_success_rate)} ({failed}/{len(result.verdicts)} failed)."
         )
     elif source == SOURCE_RECORDED:
@@ -815,7 +816,10 @@ def _render_risk_report(result: EvalResult, *, offline: bool, source: str = SOUR
     col1, col2, col3 = st.columns(3)
     col1.metric("Attack Success Rate", _pct(result.attack_success_rate))
     col2.metric("Failed cases", f"{failed}/{len(result.verdicts)}")
-    col3.metric("Wall clock", f"{metrics.wall_clock_seconds:.2f}s" if metrics else "n/a")
+    col3.metric(
+        "Full pipeline wall clock",
+        f"{metrics.wall_clock_seconds:.2f}s" if metrics else "n/a",
+    )
 
     _render_worst_case(result)
     _render_case_browser(result)
@@ -844,7 +848,7 @@ def _render_worst_case(result: EvalResult) -> None:
             f"{item.test_id}: {item.scores} stdev {item.stdev:.2f}"
             for item in result.consistency
         )
-        st.caption("Judge self-consistency: " + summary)
+        st.caption("Judge deterministic score stability: " + summary)
 
 
 def _render_case_browser(result: EvalResult) -> None:
@@ -1083,8 +1087,8 @@ def _render_amd_proof(settings: Any | None, config_error: str | None) -> None:
     screenshot = _first_existing_path(AMD_PROOF_SCREENSHOTS)
     st.markdown("## AMD Proof")
     st.markdown(
-        "Real proof screenshot first. The executed proof is AMD Radeon PRO W7900 via "
-        "vLLM + ROCm; MI300X is included as the AMD Instinct reference runbook."
+        "Recorded proof: official Gemma 3 served through vLLM + ROCm on an AMD Instinct "
+        "MI300X VF. The historical W7900 artifact remains committed for provenance."
     )
 
     if screenshot:
@@ -1094,23 +1098,27 @@ def _render_amd_proof(settings: Any | None, config_error: str | None) -> None:
             use_container_width=True,
         )
     else:
-        st.info("No proof screenshot image found. Expected w7900_proof.png or w7900/proof.png.")
+        st.info("No proof screenshot image found. Expected docs/amd_proof/mi300x/proof.png.")
 
     st.markdown("### Verified AMD run")
     if proof and proof.metrics:
         failed = sum(1 for verdict in proof.verdicts if verdict.score >= 4)
         proof_rows = [
-            {"item": "Hardware", "value": "AMD Radeon PRO W7900 / gfx1100"},
-            {"item": "Stack", "value": "ROCm 7.2 + vLLM"},
+            {"item": "Hardware", "value": "AMD Instinct MI300X VF / gfx942 / 191.7 GiB"},
+            {"item": "Stack", "value": "ROCm 6.4 + vLLM"},
             {"item": "Attacker + Judge", "value": _short(proof.metrics.model_id)},
             {"item": "Target", "value": _short(proof.metrics.target_model_id)},
             {"item": "ASR", "value": _pct(proof.attack_success_rate)},
             {"item": "Failed cases", "value": f"{failed}/{len(proof.verdicts)}"},
-            {"item": "Throughput", "value": "136.9 tok/s"},
+            {
+                "item": "Full pipeline wall clock",
+                "value": f"{proof.metrics.wall_clock_seconds:.2f}s",
+            },
+            {"item": "Per-request timeout", "value": "25s"},
         ]
         st.dataframe(pd.DataFrame(proof_rows), use_container_width=True, hide_index=True)
     else:
-        st.info("AMD proof result could not be loaded from docs/amd_proof/w7900/eval_result.json.")
+        st.info("AMD proof result could not be loaded from docs/amd_proof/mi300x/eval_result.json.")
 
     if config_error:
         st.info(
@@ -1151,9 +1159,9 @@ def _render_amd_proof(settings: Any | None, config_error: str | None) -> None:
     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
     st.caption(
-        "MI300X reference files: docs/amd_proof/mi300x_gemma.ipynb and "
-        "docs/amd_proof/serve_gemma_mi300x.sh. They are runbooks; the committed proof "
-        "above is the executed W7900 ROCm run."
+        "This is a three-case recorded demonstration, not a benchmark or judge-accuracy claim. "
+        "Repeated temperature-0 scores show deterministic stability only. Historical W7900 "
+        "artifacts remain in docs/amd_proof/w7900/."
     )
 
 

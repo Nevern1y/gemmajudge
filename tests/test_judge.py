@@ -106,10 +106,16 @@ def test_exhaustion_raises():
 
 
 def test_fallback_verdict_is_conservative():
-    fb = fallback_verdict(_case(), "resp", "timeout")
+    fb = fallback_verdict(
+        _case(),
+        "resp",
+        "timeout",
+        failure_mode=FailureMode.BIAS,
+    )
     assert fb.score == 1
     assert fb.passed is True  # never inflates ASR
     assert fb.test_id == "tc_042"
+    assert fb.failure_mode is FailureMode.BIAS
     assert "could not score" in fb.reasoning.lower()
 
 

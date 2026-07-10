@@ -14,8 +14,8 @@
    without a note in your reply (the teammate builds UI against it).
 3. Build order is in **§7**. **The whole engine roadmap is now built and tested** —
    `config → client → prompts → attacker → target → judge → orchestrator`, plus cost
-   accounting and the F9b judge-reliability pass. The DQ gate is satisfied by the
-   committed W7900/ROCm proof; MI300X remains a reference path, not an executed proof.
+   accounting and the F9b judge-reliability pass. The primary DQ evidence is the committed
+   official-Gemma MI300X/ROCm proof; the W7900 run is retained as historical provenance.
 4. Never violate the **hard constraints in §5** (30s/request, AMD proof, no secrets,
    English-only, no hardcoded answers).
 5. Check `git log --oneline` to see how far the last session got. Try the loop right now
@@ -32,15 +32,16 @@ for the drill-down.
 
 ## 1. The hackathon (context)
 
-- **Event:** AMD Developer Hackathon: ACT II. Runs LIVE **6–11 Jul 2026**. Deadline **11 Jul**
-  (exact HH:MM is on the lablab dashboard → Event Schedule, local timezone).
+- **Event:** AMD Developer Hackathon: ACT II. Runs LIVE **6–11 Jul 2026**. Deadline:
+  **11 Jul 2026, 21:00 Kazakhstan Time (UTC+5) / 16:00 UTC**.
 - **Track chosen: Track 3 — Unicorn (Open Innovation).** "An original AI application that
   uses AMD compute resources. There is no fixed task."
-- **Prize we target:** Track 3, 1st place = **$2,500** (2nd $1,500 / 3rd $1,000). This is the
-  real anchor. There is NO officially-confirmed fixed cash "Best Use of Gemma" bonus — do
-  not put a Gemma-bonus dollar figure anywhere.
-- **What we submit (Track 3):** GitHub repo (Yes) + demo video (Yes) + slide deck PDF (Yes)
-  + live demo URL (optional but recommended) + containerized app via `Dockerfile`.
+- **Prizes we target:** Track 3, 1st place = **$2,500** (2nd $1,500 / 3rd $1,000), plus
+  the officially listed Track 3 partner reward **Best AMD-Hosted Gemma Project = $2,000**.
+- **What we submit (Track 3):** public GitHub repo + demo video + slide deck PDF + live
+  demo URL + public linux/amd64 container image. The Track 3 guide says no Docker image is
+  required, but the event page and current authenticated form require containerization/a
+  Docker Image field, so follow the stricter requirement.
 - **Auto pre-screening inspects: repo + slide deck PDF + live URL. It does NOT process the
   video.** So repo/deck/URL are the priority; video is for the human-judge round only.
 - **Judging criteria (4, treated co-equal; no official % published):** Creativity &
@@ -101,22 +102,27 @@ and tested — reuse, don't redefine.
 1. **Response time < 30s per request** (all-tracks rule). → async fan-out; never run a huge
    batch on the live path. Instrument wall-clock per run. Batch of ~20 is the demo size.
 2. **AMD compute usage is REQUIRED or the project is disqualified.** Gemma must run on AMD.
-   The committed proof is self-hosted Gemma on an AMD Radeon PRO W7900 via vLLM+ROCm;
-   MI300X is a compatible reference path. Do not present Fireworks as the AMD proof.
+   The primary committed proof is self-hosted official Gemma on an AMD Instinct MI300X via
+   vLLM+ROCm; the older W7900 run is historical provenance. Do not present Fireworks as the
+   AMD proof.
 3. **No secrets in git.** `.env` is gitignored; read all keys from env. We supply our OWN
    Fireworks keys — the `FIREWORKS_*`/`ALLOWED_MODELS` harness injection is a **Track 1**
    mechanic and does NOT apply to Track 3.
 4. **English-only outputs.**
 5. **No hardcoded/cached answers** — evaluation uses unseen variants; the attacker must
    genuinely generate.
+6. **MIT-compliant and open source.** lablab.ai participation terms require this unless an
+   event explicitly says otherwise.
+7. **Disclose third-party AI tooling.** Keep `AI_TOOL_DISCLOSURE.md` and the submission
+   Additional Information field accurate.
 
 ## 6. Inference backends (env-selected)
 
 `INFERENCE_BACKEND` picks where Attacker+Judge Gemma runs:
 - `fireworks` → managed OpenAI-compatible endpoint for the **live URL** (uptime).
   Do not claim this as the AMD proof path.
-- `mi300x` → Gemma self-hosted on an AMD GPU via vLLM+ROCm. The committed proof used
-  an AMD Radeon PRO W7900; MI300X is the AMD Instinct reference path.
+- `mi300x` → Gemma self-hosted on an AMD GPU via vLLM+ROCm. The primary committed proof used
+  an AMD Instinct MI300X VF (`gfx942`); W7900 evidence is retained for history.
 
 Both are **OpenAI-compatible**, so ONE client works for both — flip via env. The target
 model is a separate OpenAI-compatible endpoint (`TARGET_ENDPOINT` / `TARGET_MODEL_ID`).

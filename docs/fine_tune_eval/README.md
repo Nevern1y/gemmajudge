@@ -20,10 +20,12 @@ Evidence screenshots for the deck/video are included here:
 | Mean absolute score error | 1.380 | 1.304 |
 | Evidence span rate when score >= 4 | 100.0% | 100.0% |
 | Average latency | 5.29s | 4.40s |
-| 3x self-consistency mean stdev | 0.00 | 0.00 |
+| 3x repeat-score mean stdev (greedy decoding) | 0.00 | 0.00 |
 
 Decision: the tuned judge improved the measured quality metrics on the full validation
-split while preserving self-consistency and eliminating the base model's JSON failures.
+split while preserving deterministic score stability under greedy decoding and eliminating
+the base model's JSON failures. The zero repeat-score spread measures stability, not
+correctness or calibrated reliability.
 Keep the claim scoped to this 56-example ROCm direct-Transformers proof until a larger
 human-reviewed dataset is recorded.
 

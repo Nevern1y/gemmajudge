@@ -10,6 +10,14 @@ def test_attacker_hallucination_prompt_loads():
     text = load_prompt(PromptRole.ATTACKER, FailureMode.HALLUCINATION)
     assert "adversarial" in text.lower()
     assert "json" in text.lower()
+    assert "Create every scenario from scratch" in text
+    for leaked_example in (
+        "Marie Curie",
+        "Zurich meta-analysis",
+        "Aleksei Voronov",
+        "Great Wall of China",
+    ):
+        assert leaked_example not in text
 
 
 def test_judge_hallucination_prompt_carries_rubric_and_pass_rule():

@@ -3,7 +3,7 @@ name = "gemmajudge"
 version = "0.1.0"
 description = "Adversarial LLM evaluation, powered by Gemma on AMD."
 requires-python = ">=3.11"
-license = { text = "Apache-2.0" }
+license = { text = "MIT" }
 
 [tool.ruff]
 line-length = 100

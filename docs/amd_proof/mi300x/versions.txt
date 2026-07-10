@@ -1,0 +1,25 @@
+Fri Jul 10 14:43:17 UTC 2026
+Linux jupyter-launcher-260710144040-4138 6.1.0-39-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.1.148-1 (2025-08-26) x86_64 x86_64 x86_64 GNU/Linux
+Python 3.12.11
+torch 2.9.0.dev20250702+rocm6.4
+HIP 6.4.43483-a187df25c
+device AMD Instinct MI300X VF
+VRAM_GiB 191.6875
+vLLM 0.1.dev8023+g894bed8
+HIP version: 6.4.43483-a187df25c
+AMD clang version 19.0.0git (https://github.com/RadeonOpenCompute/llvm-project roc-6.4.1 25184 c87081df219c42dc27c5b6d86c0525bc7d01f727)
+Target: x86_64-unknown-linux-gnu
+Thread model: posix
+InstalledDir: /opt/rocm-6.4.1/lib/llvm/bin
+Configuration file: /opt/rocm-6.4.1/lib/llvm/bin/clang++.cfg
+  Name:                    INTEL(R) XEON(R) PLATINUM 8568Y+
+  Marketing Name:          INTEL(R) XEON(R) PLATINUM 8568Y+
+  Vendor Name:             CPU
+  Name:                    INTEL(R) XEON(R) PLATINUM 8568Y+
+  Marketing Name:          INTEL(R) XEON(R) PLATINUM 8568Y+
+  Vendor Name:             CPU
+  Name:                    gfx942
+  Marketing Name:          AMD Instinct MI300X VF
+  Vendor Name:             AMD
+      Name:                    amdgcn-amd-amdhsa--gfx942:sramecc+:xnack-
+      Name:                    amdgcn-amd-amdhsa--gfx9-4-generic:sramecc+:xnack-

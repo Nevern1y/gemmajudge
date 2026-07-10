@@ -54,7 +54,12 @@ async def _judge_one(
                 engine_client, case, response, failure_mode=failure_mode
             )
         except Exception as exc:  # noqa: BLE001 - degrade, don't abort the board
-            verdict = fallback_verdict(case, response, reason=str(exc)[:120])
+            verdict = fallback_verdict(
+                case,
+                response,
+                reason=str(exc)[:120],
+                failure_mode=failure_mode,
+            )
             judge_usage = getattr(exc, "usage", None) or TokenUsage()
     return verdict, target_usage, judge_usage
 
@@ -119,7 +124,8 @@ async def run_leaderboard(
         engine_client: the Gemma Attacker + Judge.
         target_clients: the systems-under-test; each carries its own ``model_id``.
         settings: optional, only for the on-screen backend label and cost pricing.
-        max_concurrency: per-target fan-out cap (keeps each call under the 30s rule).
+        max_concurrency: per-target fan-out cap; request duration is bounded by the client
+            timeout.
         close_clients: if True, close the engine and every target client on exit
             (CLI owns its clients; the UI/tests manage their own).
 

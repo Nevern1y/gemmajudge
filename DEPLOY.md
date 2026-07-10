@@ -2,7 +2,7 @@
 
 The auto-screener checks a **live URL** (one of the inspected artifacts). The public
 Streamlit app is a zero-cost viewer over committed real artifacts: the self-hosted AMD
-W7900 run and the real Gemma leaderboard. Keep live model endpoints private/local unless
+MI300X run and the real Gemma leaderboard. Keep live model endpoints private/local unless
 you intentionally enable a short judging demo.
 
 ## Streamlit Community Cloud (recommended)
@@ -11,7 +11,7 @@ you intentionally enable a short judging demo.
 2. Go to <https://share.streamlit.io> → **New app** → pick `Nevern1y/gemmajudge`,
    branch `main`, main file `app.py`.
 3. No secrets are required for the submitted public viewer. It will load:
-   `docs/amd_proof/w7900/eval_result.json` and `docs/real_runs/leaderboard.json`.
+    `docs/amd_proof/mi300x/eval_result.json` and `docs/real_runs/leaderboard.json`.
 4. Optional private live Gemma backend: in **Advanced settings → Secrets**, paste:
     ```toml
     INFERENCE_BACKEND = "fireworks"
@@ -64,5 +64,6 @@ push adds new module-level exports; ordinary edits hot-reload fine.
 - Mission Control loads the recorded AMD proof and recorded leaderboard target from
   committed JSON artifacts.
 - **🏆 Robustness leaderboard** tab shows the real Gemma run in an incognito session.
-- `docs/amd_proof/w7900/` has the AMD (Radeon W7900) `rocm-smi` + vLLM logs + serve command + a real `eval_result.json` committed.
+- `docs/amd_proof/mi300x/` has the AMD Instinct MI300X `rocm-smi`/`rocminfo`, vLLM logs,
+  serve commands, screenshot, and a real `eval_result.json` committed.
 - Slide deck PDF uploaded to the lablab.ai submission form. English-only outputs. No secrets committed.

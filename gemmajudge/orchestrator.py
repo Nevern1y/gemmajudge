@@ -65,7 +65,12 @@ async def _run_one_case(
                 engine_client, case, response, failure_mode=failure_mode
             )
         except Exception as exc:  # noqa: BLE001 - degrade, don't abort the run
-            verdict = fallback_verdict(case, response, reason=str(exc)[:120])
+            verdict = fallback_verdict(
+                case,
+                response,
+                reason=str(exc)[:120],
+                failure_mode=failure_mode,
+            )
             # Recover any tokens the failed judge attempts spent (see LLMError.usage),
             # so a judge failure doesn't silently under-count the cost meter.
             judge_usage = getattr(exc, "usage", None) or TokenUsage()
@@ -83,8 +88,9 @@ async def _compute_consistency(
 ) -> tuple[list[ConsistencyResult], TokenUsage]:
     """Re-judge a few showcase cases K times; report the score spread (PRD F9b).
 
-    Runs AFTER the timed live path, so its extra judge calls never count against the
-    30s rule. Picks the highest-scoring (most dramatic) cases as the showcase."""
+    Runs after the measured main path, so its extra calls are excluded from
+    ``wall_clock_seconds``. Each request still uses the configured timeout. Picks the
+    highest-scoring (most dramatic) cases as the showcase."""
     showcase = sorted(
         cases,
         key=lambda c: verdicts_by_id[c.id].score if c.id in verdicts_by_id else 0,
@@ -154,7 +160,7 @@ async def run_eval(
     engine_model = engine_client.model_id
 
     try:
-        # --- timed live path (this is what the 30s rule governs) -------------
+        # --- measured main path; every model request has its own timeout ------
         start = time.monotonic()
 
         attacks, attacker_usage = await generate_attacks(engine_client, config)

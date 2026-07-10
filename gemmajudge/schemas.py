@@ -141,8 +141,11 @@ class CostReport(BaseModel):
 
 
 class RunMetrics(BaseModel):
-    """AMD-panel + latency payload. Powers the on-screen backend label and the
-    30s-rule KPI (PRD G2/F8, WORK_SPLIT 30s rule)."""
+    """AMD-panel + full-pipeline latency payload.
+
+    Individual model requests enforce their own timeout in ``config.py``; this wall-clock
+    value measures the multi-request evaluation path and may be longer than one request.
+    """
 
     wall_clock_seconds: float = 0.0
     n_cases: int = 0

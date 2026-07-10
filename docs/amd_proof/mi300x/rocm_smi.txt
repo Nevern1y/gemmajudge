@@ -1,0 +1,20 @@
+
+
+=========================================== ROCm System Management Interface ===========================================
+===================================================== Concise Info =====================================================
+Device  Node  IDs              Temp        Power     Partitions          SCLK  MCLK    Fan  Perf  PwrCap  VRAM%  GPU%
+[3m              (DID,     GUID)  (Junction)  (Socket)  (Mem, Compute, ID)                                                [0m
+========================================================================================================================
+0       8     0x74b5,   16815  53.0°C      207.0W    NPS1, SPX, 0        N/A   900Mhz  0%   auto  750.0W  70%    0%
+========================================================================================================================
+================================================= End of ROCm SMI Log ==================================================
+
+=== ROCm device identity ===
+  Name:                    INTEL(R) XEON(R) PLATINUM 8568Y+
+  Marketing Name:          INTEL(R) XEON(R) PLATINUM 8568Y+
+  Vendor Name:             CPU
+  Name:                    gfx942
+  Marketing Name:          AMD Instinct MI300X VF
+  Vendor Name:             AMD
+      Name:                    amdgcn-amd-amdhsa--gfx942:sramecc+:xnack-
+      Name:                    amdgcn-amd-amdhsa--gfx9-4-generic:sramecc+:xnack-

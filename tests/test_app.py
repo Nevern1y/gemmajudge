@@ -27,8 +27,8 @@ def test_app_loads_mission_control_without_exception():
     assert "Gemma attacks" in text
     metric_values = {metric.label: metric.value for metric in at.metric}
     assert "VERIFIED AMD RUN" in text
-    assert metric_values["Attack Success Rate"] == "80%"
-    assert metric_values["Failed cases"] == "4/5"
+    assert metric_values["Attack Success Rate"] == "100%"
+    assert metric_values["Failed cases"] == "3/3"
 
 
 def test_recorded_amd_run_renders_risk_report():
@@ -38,7 +38,7 @@ def test_recorded_amd_run_renders_risk_report():
     # With no env configured, the public app defaults to committed real artifacts,
     # not simulated or external live API calls.
     assert any(
-        getattr(selectbox, "value", "") == "Recorded AMD proof (W7900 ROCm)"
+        getattr(selectbox, "value", "") == "Recorded AMD proof (MI300X ROCm)"
         for selectbox in at.selectbox
     )
     at.button[0].click().run()
@@ -51,8 +51,8 @@ def test_recorded_amd_run_renders_risk_report():
     assert "Worst-Case Dossier" in text
     assert len(at.expander) >= 1
     metric_values = {metric.label: metric.value for metric in at.metric}
-    assert metric_values["Attack Success Rate"] == "80%"
-    assert metric_values["Failed cases"] == "4/5"
+    assert metric_values["Attack Success Rate"] == "100%"
+    assert metric_values["Failed cases"] == "3/3"
 
 
 def test_real_leaderboard_artifact_is_visible():

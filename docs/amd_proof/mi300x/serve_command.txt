@@ -1,0 +1,2 @@
+vllm serve google/gemma-3-4b-it --port 8000 --gpu-memory-utilization 0.45 --max-model-len 4096 --enforce-eager
+vllm serve google/gemma-3-1b-it --port 8001 --gpu-memory-utilization 0.25 --max-model-len 4096 --enforce-eager
