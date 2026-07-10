@@ -8,8 +8,9 @@ target responses — with committed proof of Gemma self-hosted on AMD GPUs via v
 
 Built for the **AMD Developer Hackathon: ACT II — Track 3 (Unicorn)**.
 
-> Status: engine, offline simulation, robustness leaderboard, and AMD proof-of-compute are
-> done and committed. Built during the hackathon (6–11 Jul 2026).
+> Status: engine, recorded-run app, robustness leaderboard, AMD proof-of-compute, and
+> measured ROCm LoRA judge proof are done and committed. Built during the hackathon
+> (6–11 Jul 2026).
 
 ## Hackathon submission artifacts
 
@@ -19,8 +20,10 @@ one-command run and the linux/amd64 platform required by the general container r
 
 - **GitHub repository:** <https://github.com/Nevern1y/gemmajudge>
 - **Live demo URL:** <https://gemmajudge.streamlit.app/>
+- **Demo video:** uploaded directly to the lablab.ai submission.
 - **Slide deck PDF:** uploaded directly to the lablab.ai submission form.
 - **AMD proof-of-compute:** [`docs/amd_proof/w7900/`](docs/amd_proof/w7900/)
+- **Fine-tuned judge proof:** [`docs/fine_tune_eval/`](docs/fine_tune_eval/)
 - **Real Gemma leaderboard data:** [`docs/real_runs/`](docs/real_runs/)
 
 ## Why it exists

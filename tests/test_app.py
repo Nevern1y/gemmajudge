@@ -1,8 +1,8 @@
 """Integration smoke tests for the Streamlit Mission Control UI.
 
 The app runs in-process with Streamlit's AppTest harness. Tests stay offline:
-with no env configured, the UI defaults to the simulated backend for live runs
-and renders the committed real-Gemma leaderboard artifact from docs/real_runs/.
+with no env configured, the UI defaults to committed recorded AMD artifacts and
+renders the real-Gemma leaderboard and fine-tune report from docs/.
 """
 
 from streamlit.testing.v1 import AppTest
@@ -64,6 +64,22 @@ def test_real_leaderboard_artifact_is_visible():
     assert "Real Gemma run" in text
     assert "gemma-3-27b-it" in text
     assert "gpt-oss-120b" in text
+
+
+def test_fine_tune_proof_surface_is_present():
+    at = AppTest.from_file(_APP, default_timeout=60).run()
+    assert not at.exception
+    at.radio[0].set_value("Fine-Tune Proof").run()
+    assert not at.exception
+    text = "\n".join(_texts(at))
+    assert "Fine-Tune Proof" in text
+    assert "Recorded ROCm result" in text
+    assert "56-example validation split" in text
+    metric_values = {metric.label: metric.value for metric in at.metric}
+    assert metric_values["Valid JSON"] == "100.0%"
+    assert metric_values["Pass/fail accuracy"] == "75.0%"
+    assert metric_values["Macro-F1"] == "0.622"
+    assert metric_values["Score MAE"] == "1.30"
 
 
 def test_amd_proof_surface_is_present():

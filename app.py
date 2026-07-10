@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import html
+import json
 import os
 from datetime import datetime
 from pathlib import Path
@@ -49,6 +50,12 @@ AMD_PROOF_FILES = (
     "eval_result.json",
     "notes.md",
     "proof.png",
+)
+FINE_TUNE_PROOF_DIR = ROOT / "docs" / "fine_tune_eval"
+FINE_TUNE_REPORT_PATH = FINE_TUNE_PROOF_DIR / "report.json"
+FINE_TUNE_EVIDENCE = (
+    FINE_TUNE_PROOF_DIR / "evidence_metrics.png",
+    FINE_TUNE_PROOF_DIR / "evidence_analysis.png",
 )
 
 HISTORY_LIMIT = 12
@@ -356,6 +363,17 @@ def _load_amd_proof_result() -> EvalResult | None:
             AMD_PROOF_RESULT_PATH.read_text(encoding="utf-8")
         )
     except Exception:  # noqa: B110 - missing/invalid proof hides only this summary
+        return None
+
+
+@st.cache_data(show_spinner=False)
+def _load_fine_tune_report() -> dict[str, Any] | None:
+    try:
+        report = json.loads(FINE_TUNE_REPORT_PATH.read_text(encoding="utf-8"))
+        if not isinstance(report, dict) or "models" not in report:
+            return None
+        return report
+    except (OSError, json.JSONDecodeError):
         return None
 
 
@@ -940,6 +958,126 @@ def _render_target_drilldown(board: LeaderboardResult, target: TargetReport) -> 
                 st.caption("Evidence span: " + verdict.evidence_span)
 
 
+def _render_fine_tune_proof() -> None:
+    report = _load_fine_tune_report()
+    st.markdown("## Fine-Tune Proof")
+    st.markdown(
+        "Recorded base-vs-tuned judge evaluation from the AMD ROCm training session. "
+        "The claim is deliberately scoped to the committed 56-example validation run."
+    )
+    if report is None:
+        st.info("Fine-tune report could not be loaded from docs/fine_tune_eval/report.json.")
+        return
+
+    models = report.get("models", {})
+    base = models.get("base", {})
+    tuned = models.get("tuned", {})
+    base_metrics = base.get("metrics", {})
+    tuned_metrics = tuned.get("metrics", {})
+    n_examples = int(report.get("n_validation_examples", 0))
+    model_route = (
+        f"{_escape(base.get('model', 'base judge'))} -> "
+        f"{_escape(tuned.get('model', 'tuned judge'))}"
+    )
+
+    st.markdown(
+        f"""
+        <div class="gj-read-card">
+          <div class="gj-kicker">Recorded ROCm result</div>
+          <strong>{model_route}</strong>
+          <p>{n_examples} held-out examples · direct Transformers generation on ROCm ·
+          selected champion: {_escape(report.get('champion', 'n/a'))}.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    json_base = float(base_metrics.get("json_validity", 0.0))
+    json_tuned = float(tuned_metrics.get("json_validity", 0.0))
+    pass_base = float(base_metrics.get("pass_fail_accuracy", 0.0))
+    pass_tuned = float(tuned_metrics.get("pass_fail_accuracy", 0.0))
+    f1_base = float(base_metrics.get("macro_f1_violation_detected", 0.0))
+    f1_tuned = float(tuned_metrics.get("macro_f1_violation_detected", 0.0))
+    mae_base = float(base_metrics.get("mean_absolute_score_error", 0.0))
+    mae_tuned = float(tuned_metrics.get("mean_absolute_score_error", 0.0))
+    exact_base = float(base_metrics.get("exact_score_accuracy", 0.0))
+    exact_tuned = float(tuned_metrics.get("exact_score_accuracy", 0.0))
+    latency_base = float(base_metrics.get("avg_latency_s", 0.0))
+    latency_tuned = float(tuned_metrics.get("avg_latency_s", 0.0))
+
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Valid JSON", f"{json_tuned:.1%}", f"{(json_tuned - json_base) * 100:+.1f} pp")
+    col2.metric(
+        "Pass/fail accuracy",
+        f"{pass_tuned:.1%}",
+        f"{(pass_tuned - pass_base) * 100:+.1f} pp",
+    )
+    col3.metric("Macro-F1", f"{f1_tuned:.3f}", f"{f1_tuned - f1_base:+.3f}")
+    col4.metric(
+        "Score MAE",
+        f"{mae_tuned:.2f}",
+        f"{mae_tuned - mae_base:+.2f}",
+        delta_color="inverse",
+    )
+
+    comparison = pd.DataFrame(
+        [
+            {
+                "metric": "JSON validity",
+                "base": f"{json_base:.1%}",
+                "tuned": f"{json_tuned:.1%}",
+            },
+            {
+                "metric": "Exact score accuracy",
+                "base": f"{exact_base:.1%}",
+                "tuned": f"{exact_tuned:.1%}",
+            },
+            {
+                "metric": "Pass/fail accuracy",
+                "base": f"{pass_base:.1%}",
+                "tuned": f"{pass_tuned:.1%}",
+            },
+            {
+                "metric": "Violation macro-F1",
+                "base": f"{f1_base:.3f}",
+                "tuned": f"{f1_tuned:.3f}",
+            },
+            {
+                "metric": "Mean absolute score error",
+                "base": f"{mae_base:.2f}",
+                "tuned": f"{mae_tuned:.2f}",
+            },
+            {
+                "metric": "Average latency",
+                "base": f"{latency_base:.2f}s",
+                "tuned": f"{latency_tuned:.2f}s",
+            },
+        ]
+    )
+    st.dataframe(comparison, use_container_width=True, hide_index=True)
+
+    evidence = [path for path in FINE_TUNE_EVIDENCE if path.exists()]
+    if evidence:
+        st.markdown("### Committed evidence")
+        columns = st.columns(len(evidence))
+        for column, path in zip(columns, evidence, strict=True):
+            column.image(
+                str(path),
+                caption=path.name,
+                use_container_width=True,
+            )
+
+    st.info(
+        "Scoped claim: this tuned checkpoint beat its base model on the recorded "
+        "56-example validation split. A larger human-reviewed benchmark is still needed "
+        "for a general judge-quality claim."
+    )
+    st.caption(
+        "Source: docs/fine_tune_eval/report.json · training and evaluation ran on AMD ROCm; "
+        "the recorded serving fallback used direct Transformers generation."
+    )
+
+
 def _render_amd_proof(settings: Any | None, config_error: str | None) -> None:
     proof = _load_amd_proof_result()
     screenshot = _first_existing_path(AMD_PROOF_SCREENSHOTS)
@@ -1028,7 +1166,7 @@ def main() -> None:
 
     page = st.radio(
         "Navigation",
-        ["Mission Control", "Leaderboard", "AMD Proof"],
+        ["Mission Control", "Fine-Tune Proof", "Leaderboard", "AMD Proof"],
         horizontal=True,
         label_visibility="collapsed",
         key="page_nav",
@@ -1041,6 +1179,8 @@ def main() -> None:
             _render_run_form(settings, config_error, board)
         with result_col:
             _render_results()
+    elif page == "Fine-Tune Proof":
+        _render_fine_tune_proof()
     elif page == "Leaderboard":
         _render_leaderboard(board)
     else:
