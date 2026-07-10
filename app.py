@@ -357,7 +357,6 @@ def _load_leaderboard() -> LeaderboardResult | None:
         return None
 
 
-@st.cache_data(show_spinner=False)
 def _load_amd_proof_result() -> EvalResult | None:
     try:
         return EvalResult.model_validate_json(
