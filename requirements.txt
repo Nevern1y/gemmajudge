@@ -4,6 +4,7 @@ pydantic>=2.7.0         # data contracts / structured validation
 python-dotenv>=1.0.1    # load .env in local dev
 streamlit>=1.36.0       # UI
 pandas>=2.2.0,<3.0      # avoid pandas 3 / pyarrow 25 Streamlit AppTest segfault
+pyarrow>=7.0,<25.0      # pyarrow 25 segfaults in Streamlit dataframe serialization on CI
 plotly>=5.22.0          # charts
 
 # Dev
